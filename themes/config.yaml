@@ -1,0 +1,90 @@
+post_limit: 10
+search_file: https://lucianofedericopereira.github.io/codecraft/search.json
+
+base:
+  url: lucianofedericopereira.github.io
+  folder: codecraft
+
+meta:
+  title: design﹢code
+  tagline: CodeCraft Chronicles
+  author: Luciano Pereira
+  repository: https://github.com/lucianofedericopereira
+  license: GPLv2
+  locale: en
+
+assets:
+  images:
+    logo: codeCraft.ico
+    favicon: codeCraft.ico
+  fonts:
+    - type: title
+      name: Mediaan
+      weight: Regular
+      extension: woff2
+    - type: body
+      name: VisueltPro
+      weight: Regular
+      extension: woff2
+    - type: code
+      name: JetBrainsMono
+      weight: Medium
+      extension: woff2
+
+links:
+  LinkedIn: https://www.linkedin.com/in/lucianofedericopereira/
+  GitHub: https://github.com/lucianofedericopereira
+
+sections:
+  - design
+  - code
+  - projects
+
+rules:
+  - scope:
+      path: sections/home.md
+    features:
+      banner: false
+      toc: false
+      comments: false
+      mermaid: false
+      codepen: false
+  - scope:
+      path: sections
+    features:
+      banner: true
+      toc: false
+      comments: false
+      mermaid: false
+      codepen: false
+  - scope:
+      path: content/design
+    features:
+      toc: true
+      comments: false
+      mermaid: false
+      codepen: false
+  - scope:
+      path: content/code
+    features:
+      toc: true
+      comments: false
+      mermaid: false
+      codepen: false
+  - scope:
+      path: content/projects
+    features:
+      toc: true
+      comments: false
+      mermaid: false
+      codepen: false
+
+comments:
+  theme: github-light
+  issue: title
+  repo: lucianofedericopereira/comments
+  src: https://utteranc.es/client.js
+
+scripts:
+  mermaid: 11.4.1
+  lunr: 2.3.9

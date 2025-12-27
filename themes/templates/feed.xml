@@ -1,0 +1,14 @@
+{% set domain = "https://" ~ site.base.url %}{% set folder = domain ~ "/" ~ site.base.folder %}<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>{{ site.meta.title }}</title>
+    <link>{{ folder }}</link>
+    <description>{{ site.meta.tagline }}</description>
+    <lastBuildDate>{{ now.strftime('%a, %d %b %Y %H:%M:%S +0000') }}</lastBuildDate>
+      {% for item in posts %}<item>
+        <title>{{ item.collection|capitalize }} › {{ item.title }}</title>
+        <link>{{ folder }}{{ item.url }}</link>
+        <pubDate>{{ item.date|date_format('%a, %d %b %Y %H:%M:%S +0000') }}</pubDate>
+      </item>
+      {% endfor %}</channel>
+</rss>

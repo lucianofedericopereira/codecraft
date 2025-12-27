@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="{{ site.meta.locale|default('en') }}">
+{% include 'head.html' %}
+<body>
+    <div id="translate"></div>
+    <header>
+        <a tabindex="0" href="{{ base_url }}/" id="logo-link">
+            <div id="logo" class="notranslate">
+                <img id="logo-pic" width="36" height="36" src="{{ logo }}" alt="logo">
+                {{ site.meta.title }}
+            </div>
+            <div id="slogan">{{ site.meta.tagline }}</div>
+        </a>
+    </header>
+    <button type="button" id="menu-toggle" aria-label="Toggle Menu" aria-expanded="false">
+        <span class="border" aria-hidden="true"></span>
+        <span class="icon icon-menu" aria-hidden="true"></span>
+    </button>
+    <aside id="menu" aria-hidden="false">
+        {% include 'aside.html' %}
+    </aside>
+    <main>
+        {% if page.toc %}<button type="button" id="toc-toggle" aria-label="Show Table of Contents" aria-expanded="false"><span class="icon icon-toc" aria-hidden="true"></span></button>{% endif %}
+        <h1{% if page.banner %} class="banner" {% endif %}>{{ page.title }}</h1>
+        <div id="index" aria-hidden="true"><div id="reading-time"></div><div id="chapters"></div></div>
+        {{ page.content|safe }}
+        {% if page.comments and site.comments.repo %}<div id="comments">
+            <h3>Comments</h3>
+            <div id="comments-utteranc" class="notranslate"></div>
+        </div>{% endif %}
+    </main>
+    <script type="module" async>
+        import lunr from '{{ asset_urls.lunr }}';
+        import { codeCraft } from '{{ js }}';
+        codeCraft.init(lunr);
+    </script>{% if page.codepen %}<script async src="https://cpwebassets.codepen.io/assets/embed/ei.js"></script>{% endif %}
+</body>
+</html>

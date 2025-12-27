@@ -1,0 +1,23 @@
+{% set domain = "https://" ~ site.base.url %}
+{% set folder = domain ~ "/" ~ site.base.folder %}
+<div class="items">
+    <div class="controllers">
+        <label>All<input id="all" type="radio" name="filter" checked="checked"></label>
+        {% for collection_name in ['design', 'code', 'projects'] %}
+        {% if posts[collection_name]|length > 0 %}
+        <label>{{ collection_name|capitalize }}<input id="{{ collection_name }}" type="radio" name="filter"></label>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% set ns = namespace(current_year='') %}
+    {% for item in all_posts %}
+    {% set year = item.date|year %}
+    {% if year != ns.current_year %}
+    <h3 class="year-{{ year }}">{{ year }}</h3>
+    {% set ns.current_year = year %}
+    {% endif %}
+    <p class="list {{ item.collection }} year-{{ year }}">
+        <a href="{{ item.url }}"><span>{{ item.date|date_archive }}</span> {{ item.title }}</a>
+    </p>
+    {% endfor %}
+</div>

@@ -1,0 +1,11 @@
+{% set folder = "/" ~ site.base.folder %}[
+{% for item in posts %}
+{
+  "doc": "{{ item.title|replace('"', '\\"') }}",
+  "title": "{{ item.title|replace('"', '\\"') }}",
+  "content": "{{ (item.content|striptags|replace('\n', ' ')|replace('"', '\\"'))[:200] }}",
+  "url": "{{ folder }}/{{ item.url }}",
+  "relUrl": "{{ item.url }}"
+}{% if not loop.last %},{% endif %}
+{% endfor %}
+]

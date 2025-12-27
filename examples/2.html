@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Star Rating System</title>
+  <style id="example-css">
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 1rem;
+      line-height: 1.5;
+    }
+
+    .rating-demo {
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: #333;
+      font-size: 0.875rem;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      margin-bottom: 1.5rem;
+    }
+
+    .star-display {
+      text-align: center;
+      padding: 1.5rem;
+      background: #f8f9fa;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+    }
+
+    .star {
+      font-size: 3rem;
+      line-height: 1;
+    }
+
+    .star::before {
+      color: #ffc700;
+    }
+
+    .star::after {
+      color: #dddad7;
+    }
+
+    .star[data-rating="1"]::before,
+    .star[data-rating="4"]::after {
+      content: "★";
+    }
+
+    .star[data-rating="2"]::before,
+    .star[data-rating="3"]::after {
+      content: "★★";
+    }
+
+    .star[data-rating="3"]::before,
+    .star[data-rating="2"]::after {
+      content: "★★★";
+    }
+
+    .star[data-rating="4"]::before,
+    .star[data-rating="1"]::after {
+      content: "★★★★";
+    }
+
+    .star[data-rating="5"]::before,
+    .star[data-rating="0"]::after {
+      content: "★★★★★";
+    }
+
+    .rating-value {
+      text-align: center;
+      font-size: 0.875rem;
+      color: #666;
+      margin-top: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="rating-demo">
+    <label for="rating">Rating (0-5)</label>
+    <input type="range" id="rating" min="0" max="5" value="3">
+
+    <div class="star-display">
+      <span class="star" data-rating="3"></span>
+      <div class="rating-value">Rating: <strong>3</strong> / 5</div>
+    </div>
+  </div>
+
+  <script id="example-js">
+    const ratingInput = document.getElementById('rating');
+    const starElement = document.querySelector('.star');
+    const ratingValue = document.querySelector('.rating-value strong');
+
+    const updateRating = () => {
+      const rating = ratingInput.value;
+      starElement.setAttribute('data-rating', rating);
+      ratingValue.textContent = rating;
+    };
+
+    ratingInput.addEventListener('input', updateRating);
+  </script>
+</body>
+</html>

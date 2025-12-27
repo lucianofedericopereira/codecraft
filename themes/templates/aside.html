@@ -1,0 +1,25 @@
+<div class="search" role="search">
+  <div class="search-input-wrap">
+    <input type="text" id="search-input" class="search-input" tabindex="0" placeholder="Search design﹢code"
+      aria-label="Search design﹢code" autocomplete="off">
+    <label for="search-input" class="search-label">
+      <span class="icon icon-search"></span>
+    </label>
+  </div>
+  <div id="search-results" class="search-results"></div>
+</div>
+<div class="aside-title">Sections</div>
+<a class="aside-link" href="{{ base_url }}/">Home</a>
+{% for page_item in pages %}{% if page_item.sidebar and page_item.url != '/' %}<a class="aside-link" href="{{ page_item.url }}">{{ page_item.title }}</a>{% endif %}{% endfor %}
+{% if site.links %}{% for link_name, link_url in site.links.items() %}<a href="{{ link_url }}" class="aside-link" rel="noopener noreferrer">{{ link_name }}</a>{% endfor %}{% endif %}
+<button type="button" id="translate-toggle" class="aside-title" aria-expanded="false">
+    Translate &rsaquo;
+</button>
+<div class="dropdown" id="translate-dropdown" aria-hidden="true">
+  <a href="#" hreflang="en" class="notranslate lang-select aside-link aside-selected">English</a>
+  <a href="#" hreflang="es" class="notranslate lang-select aside-link">Español</a>
+  <a href="#" hreflang="it" class="notranslate lang-select aside-link">Italiano</a>
+  <a href="#" hreflang="de" class="notranslate lang-select aside-link">Deutsch</a>
+  <a href="#" hreflang="pt" class="notranslate lang-select aside-link">Português</a>
+  <a href="#" hreflang="fr" class="notranslate lang-select aside-link">Français</a>
+</div>

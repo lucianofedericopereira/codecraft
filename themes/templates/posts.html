@@ -1,0 +1,18 @@
+{% set domain = "https://" ~ site.base.url %}
+{% set folder = domain ~ "/" ~ site.base.folder %}
+<div class="latest-items">
+{% for item in all_posts %}
+<div class="entry" data-clickable>
+    <p class="title">
+        <a href="{{ item.url }}"><b>{{ item.title }}</b></a><br>
+        <i class="date-tag">{{ item.date|date_full }}</i>
+    </p>
+    {% set words = item.content|striptags|split(' ') %}
+    {% set excerpt_words = words[:50] %}
+    {% set excerpt = excerpt_words|join(' ') %}
+    <p>{{ excerpt }}
+        <span class="section-tag notranslate" data-clickable data-href="{{ item.collection }}/">{{ item.collection }}</span>
+    </p>
+</div>
+{% endfor %}
+</div>
