@@ -5,6 +5,8 @@ comments: true
 toc: true
 ---
 
+Exploring how a static pulsar plot from 1970 became the spark that led me to understand Perlin noise, animation, and the beauty of coherent randomness. Turning Unknown Pleasures into moving waves taught me more about programming than any textbook ever did.
+
 ## 4K Before 4K
 
 Back then, “4K” didn’t mean ultra‑HD — it meant 4 kilobytes. Tiny intros that somehow squeezed whole worlds of motion, color, and attitude into the space of a modern emoji pack. And somewhere in that neon‑washed universe of pixels pretending to be ultra‑HD, with synth lines stretching into cosmic gradients, one image kept resurfacing in my mind: the waveform from Joy Division’s *Unknown Pleasures*.
@@ -14,6 +16,10 @@ That stark, minimalist cover showed something I couldn’t unsee — a still ima
 ## From Stillness to Motion
 
 On my Commodore 64, armed with assembly language and pre‑calculated prime numbers (because true randomness was too expensive), I tried to animate what I saw. Sine waves came first: too perfect, too predictable. Then I tried more complex LFOs, but they still lacked that organic wobble I was chasing.
+
+Just to be clear, the original CP1919 pulsar plot — the one used on *Unknown Pleasures* — does not move. It’s a stack of 80 separate recordings, each one a single rotation of the pulsar. Think of it like 80 screenshots of a repeating signal.
+
+But what I wanted wasn’t the science — it was the *feeling* of those lines coming alive. And to get that, I needed something the real data couldn’t give me.
 
 ## Perlin Noise: So 80s.
 
