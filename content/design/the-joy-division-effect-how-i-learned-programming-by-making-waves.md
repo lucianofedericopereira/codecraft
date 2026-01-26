@@ -54,7 +54,7 @@ In practical terms:
 
 - Initialize noise tables
 - Build the permutation table, fade curve, and height profile.
-- For each animation frame: 1) clear the canvas 2) loop over horizontal lines 3) 
+- For each animation frame: 1) clear the canvas 2) loop over horizontal lines, and
 - for each x‑coordinate, compute a Perlin noise value: 1) multiply it by the height table 2) subtract it from the baseline y‑position 3) draw the resulting shape
 - Advance time (this.t += 0.01)  
 - This shifts the sampling position in the noise field, creating motion.
