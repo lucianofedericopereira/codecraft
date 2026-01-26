@@ -53,15 +53,15 @@ The key detail is the idx++ inside the inner loop. That increment ensures each x
 In practical terms:
 
 - Initialize noise tables
-- - Build the permutation table, fade curve, and height profile.
+- Build the permutation table, fade curve, and height profile.
 - For each animation frame:
-  1. clear the canvas
-  1. loop over horizontal lines
-  1. for each x‑coordinate, compute a Perlin noise value
-  1. multiply it by the height table
-  1. subtract it from the baseline y‑position
-  1. draw the resulting shape
--Advance time (this.t += 0.01)  
+  - clear the canvas
+  - loop over horizontal lines
+  - for each x‑coordinate, compute a Perlin noise value
+  - multiply it by the height table
+  - subtract it from the baseline y‑position
+  - draw the resulting shape
+- Advance time (this.t += 0.01)  
 - This shifts the sampling position in the noise field, creating motion.
 - Request the next frame  
 - And the animation continues.
