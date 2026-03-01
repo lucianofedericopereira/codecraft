@@ -140,7 +140,7 @@ main {
     main {
         width: 100%;
         position: relative;
-        background-image:url(assets/codeCraft.webp);
+        background-image:url(codeCraft.webp);
         background-repeat:repeat;
         background-size:200px 200px;
         mix-blend-mode:multiply
