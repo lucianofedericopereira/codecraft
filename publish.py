@@ -8,13 +8,13 @@ from __future__ import annotations
 import copy
 import re
 import shutil
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import frontmatter
 import yaml
-from jinja2 import Environment, FileSystemLoader, TemplateNotFound
+from jinja2 import Environment, FileSystemLoader
 from markdown import markdown
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
@@ -173,6 +173,11 @@ def normalize_url_path(path: str) -> str:
 # DATE FORMATTING FUNCTIONS
 # ============================================================================
 
+def _month_abbr(month_index: int, lang: str) -> str:
+    """Get abbreviated month name for a zero-based month index"""
+    return MONTHS.get(lang, MONTHS['en'])[month_index]
+
+
 def format_month_year(date_str: str, lang: str = "en") -> str:
     """Format YYYY-MM date string to abbreviated month + year
 
@@ -187,8 +192,7 @@ def format_month_year(date_str: str, lang: str = "en") -> str:
         return ""
     try:
         year, month = str(date_str).split("-")[:2]
-        month_index = int(month) - 1
-        return f"{MONTHS.get(lang, MONTHS['en'])[month_index]} {year}"
+        return f"{_month_abbr(int(month) - 1, lang)} {year}"
     except Exception:
         return str(date_str)
 
@@ -206,13 +210,8 @@ def format_date_archive(date_str: str, lang: str = "en") -> str:
     if not date_str:
         return ""
     try:
-        parts = str(date_str).split("-")
-        if len(parts) >= 3:
-            year, month, day = parts[:3]
-            month_index = int(month) - 1
-            day_num = int(day)
-            return f"{MONTHS.get(lang, MONTHS['en'])[month_index]} {day_num:02d}"
-        return str(date_str)
+        year, month, day = str(date_str).split("-")[:3]
+        return f"{_month_abbr(int(month) - 1, lang)} {int(day):02d}"
     except Exception:
         return str(date_str)
 
@@ -228,10 +227,7 @@ def extract_year(date_str: str) -> str:
     """
     if not date_str:
         return ""
-    try:
-        return str(date_str).split("-")[0]
-    except Exception:
-        return str(date_str)
+    return str(date_str).split("-")[0]
 
 
 def format_date_full(date_str: str, lang: str = "en") -> str:
@@ -247,13 +243,8 @@ def format_date_full(date_str: str, lang: str = "en") -> str:
     if not date_str:
         return ""
     try:
-        parts = str(date_str).split("-")
-        if len(parts) >= 3:
-            year, month, day = parts[:3]
-            month_index = int(month) - 1
-            day_num = int(day)
-            return f"{MONTHS.get(lang, MONTHS['en'])[month_index]} {day_num:02d}, {year}"
-        return str(date_str)
+        year, month, day = str(date_str).split("-")[:3]
+        return f"{_month_abbr(int(month) - 1, lang)} {int(day):02d}, {year}"
     except Exception:
         return str(date_str)
 
@@ -268,7 +259,6 @@ def format_date_jinja(value: Any, format: str = '%B %d, %Y') -> str:
     Returns:
         Formatted date string
     """
-    from datetime import date
     if isinstance(value, str):
         try:
             value = datetime.strptime(value, '%Y-%m-%d')
@@ -294,23 +284,18 @@ def extract_include_directives(content: str) -> Tuple[str, Dict[str, str]]:
     """
     include_directives = {}
 
-    # Posts include
-    if '{%- include posts.html -%}' in content or '{% include posts.html %}' in content:
-        include_directives[PLACEHOLDER_POSTS] = 'posts'
-        content = content.replace('{%- include posts.html -%}', PLACEHOLDER_POSTS)
-        content = content.replace('{% include posts.html %}', PLACEHOLDER_POSTS)
+    includes = [
+        ('posts.html', PLACEHOLDER_POSTS, 'posts'),
+        ('category.html', PLACEHOLDER_CATEGORY, 'category'),
+        ('archive.html', PLACEHOLDER_ARCHIVE, 'archive'),
+    ]
 
-    # Category include
-    if '{%- include category.html -%}' in content or '{% include category.html %}' in content:
-        include_directives[PLACEHOLDER_CATEGORY] = 'category'
-        content = content.replace('{%- include category.html -%}', PLACEHOLDER_CATEGORY)
-        content = content.replace('{% include category.html %}', PLACEHOLDER_CATEGORY)
-
-    # Archive include
-    if '{%- include archive.html -%}' in content or '{% include archive.html %}' in content:
-        include_directives[PLACEHOLDER_ARCHIVE] = 'archive'
-        content = content.replace('{%- include archive.html -%}', PLACEHOLDER_ARCHIVE)
-        content = content.replace('{% include archive.html %}', PLACEHOLDER_ARCHIVE)
+    for template_name, placeholder, directive in includes:
+        variants = (f'{{%- include {template_name} -%}}', f'{{% include {template_name} %}}')
+        if any(variant in content for variant in variants):
+            include_directives[placeholder] = directive
+            for variant in variants:
+                content = content.replace(variant, placeholder)
 
     return content, include_directives
 
@@ -388,7 +373,7 @@ def highlight_code_blocks(content: str) -> str:
             formatter = HtmlFormatter(cssclass=CSS_CLASS_HIGHLIGHT, noclasses=False)
             highlighted = highlight(code, lexer, formatter)
             return f'<div class="{CSS_CLASS_HIGHLIGHTER_ROUGE}">{highlighted}</div>'
-        except:
+        except Exception:
             return f'<div class="{CSS_CLASS_HIGHLIGHTER_ROUGE}"><div class="{CSS_CLASS_HIGHLIGHT}"><pre><code class="language-{lang}">{code}</code></pre></div></div>'
 
     return re.sub(PATTERN_CODE_BLOCK, highlight_match, content, flags=re.DOTALL)
@@ -491,8 +476,7 @@ class SiteBuilder:
         if config_file.exists():
             try:
                 with open(config_file, 'r', encoding='utf-8') as f:
-                    config = yaml.safe_load(f)
-                    config = config if config else {}
+                    config = yaml.safe_load(f) or {}
             except Exception:
                 config = {}
 
@@ -672,10 +656,7 @@ class SiteBuilder:
         Returns:
             List of all posts sorted by date
         """
-        all_posts = []
-        for collection in self.posts.values():
-            all_posts.extend(collection)
-
+        all_posts = [post for collection in self.posts.values() for post in collection]
         all_posts.sort(key=lambda x: x.get('date', ''), reverse=True)
         return all_posts
 
@@ -880,11 +861,12 @@ class SiteBuilder:
             assets_dst.mkdir(parents=True, exist_ok=True)
 
             for item in assets_src.iterdir():
-                if item.name != FILE_CODECRAFT_CSS:
-                    if item.is_file():
-                        shutil.copy2(item, assets_dst / item.name)
-                    elif item.is_dir():
-                        shutil.copytree(item, assets_dst / item.name, dirs_exist_ok=True)
+                if item.name == FILE_CODECRAFT_CSS:
+                    continue
+                if item.is_file():
+                    shutil.copy2(item, assets_dst / item.name)
+                elif item.is_dir():
+                    shutil.copytree(item, assets_dst / item.name, dirs_exist_ok=True)
 
         # Copy examples directory if it exists
         examples_src = self.root_dir / 'examples'
@@ -909,19 +891,13 @@ class SiteBuilder:
         print("✓ Collected posts and pages")
 
         total_posts = sum(len(posts) for posts in self.posts.values())
-        if total_posts > 0:
-            for collection_name, posts in self.posts.items():
-                for post in posts:
-                    output_path = normalize_url_path(post['url'])
-                    self.render_page(post, output_path)
+        for posts in self.posts.values():
+            for post in posts:
+                self.render_page(post, normalize_url_path(post['url']))
         print("✓ Rendered posts")
 
         for page in self.pages:
-            if page['url'] == '/':
-                output_path = ''
-            else:
-                output_path = normalize_url_path(page['url'])
-            self.render_page(page, output_path)
+            self.render_page(page, normalize_url_path(page['url']))
         print("✓ Rendered pages")
 
         self.generate_feed()
@@ -931,7 +907,7 @@ class SiteBuilder:
         self.copy_static_files()
         print("✓ Copied static assets")
 
-        print(f"\n✓ Build complete! Output in build/")
+        print("\n✓ Build complete! Output in build/")
         print(f"   Posts: {total_posts}, Pages: {len(self.pages)}")
 
 

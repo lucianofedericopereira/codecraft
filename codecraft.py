@@ -5,24 +5,22 @@ A Python-based static site generator using Jinja2 templates and Markdown
 """
 from __future__ import annotations
 
+import argparse
 import copy
 import io
-import json
 import os
 import re
 import shutil
 import subprocess
 import sys
 import urllib.parse
-from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-import argparse
 import frontmatter
 import yaml
-from jinja2 import Environment, FileSystemLoader, TemplateNotFound
+from jinja2 import Environment, FileSystemLoader
 from markdown import markdown
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
@@ -59,7 +57,6 @@ FILE_SEARCH = 'search.json'
 # File extensions
 EXT_MD = '.md'
 EXT_HTML = '.html'
-EXT_CSS = '.css'
 EXT_JS = '.js'
 
 # Markdown configuration
@@ -162,11 +159,8 @@ MESSAGES = {
         "editor_not_found": "Editor '{}' not found",
         "file_exists": "Warning: File {} already exists",
         "invalid_yaml": "Invalid YAML format in {}: {}",
-        "loading_template": "Error loading template {}: {}",
         "parsing_markdown": "Error parsing markdown in {}: {}",
         "reading_file": "Error reading {}: {}",
-        "rendering_template": "Error rendering template {}: {}",
-        "template_not_found": "Template not found: {}",
     },
     "examples": [
         "%(prog)s build Build the site",
@@ -255,33 +249,6 @@ INFO = " \033[94mℹ\033[0m"
 
 
 # ============================================================================
-# DATA CLASSES
-# ============================================================================
-
-@dataclass
-class PostData:
-    """Represents a blog post or page with its metadata"""
-    content: str
-    title: str
-    date: str
-    url: str
-    file_path: Path
-    comments: bool = False
-    mermaid: bool = False
-    codepen: bool = False
-    toc: bool = False
-    banner: bool = False
-    sidebar: bool = True
-    collection: str = ""
-    section: str = ""
-    include_directives: Dict[str, str] = None
-
-    def __post_init__(self):
-        if self.include_directives is None:
-            self.include_directives = {}
-
-
-# ============================================================================
 # UTILITY FUNCTIONS
 # ============================================================================
 
@@ -334,18 +301,19 @@ def slugify(text: str) -> str:
     Returns:
         URL-safe slug
     """
-    slug = text.lower()
-    slug = ''.join(c if c.isalnum() or c in ' -' else '' for c in slug)
-    slug = slug.replace(' ', '-').strip('-')
-    # Remove consecutive dashes
-    while '--' in slug:
-        slug = slug.replace('--', '-')
-    return slug
+    slug = ''.join(c if c.isalnum() or c in ' -' else '' for c in text.lower())
+    slug = slug.replace(' ', '-')
+    return re.sub(r'-{2,}', '-', slug).strip('-')
 
 
 # ============================================================================
 # DATE FORMATTING FUNCTIONS
 # ============================================================================
+
+def _month_abbr(month_index: int, lang: str) -> str:
+    """Get abbreviated month name for a zero-based month index"""
+    return MONTHS.get(lang, MONTHS['en'])[month_index]
+
 
 def format_month_year(date_str: str, lang: str = "en") -> str:
     """Format YYYY-MM date string to abbreviated month + year
@@ -361,8 +329,7 @@ def format_month_year(date_str: str, lang: str = "en") -> str:
         return ""
     try:
         year, month = str(date_str).split("-")[:2]
-        month_index = int(month) - 1
-        return f"{MONTHS.get(lang, MONTHS['en'])[month_index]} {year}"
+        return f"{_month_abbr(int(month) - 1, lang)} {year}"
     except Exception:
         return str(date_str)
 
@@ -380,13 +347,8 @@ def format_date_archive(date_str: str, lang: str = "en") -> str:
     if not date_str:
         return ""
     try:
-        parts = str(date_str).split("-")
-        if len(parts) >= 3:
-            year, month, day = parts[:3]
-            month_index = int(month) - 1
-            day_num = int(day)
-            return f"{MONTHS.get(lang, MONTHS['en'])[month_index]} {day_num:02d}"
-        return str(date_str)
+        year, month, day = str(date_str).split("-")[:3]
+        return f"{_month_abbr(int(month) - 1, lang)} {int(day):02d}"
     except Exception:
         return str(date_str)
 
@@ -402,10 +364,7 @@ def extract_year(date_str: str) -> str:
     """
     if not date_str:
         return ""
-    try:
-        return str(date_str).split("-")[0]
-    except Exception:
-        return str(date_str)
+    return str(date_str).split("-")[0]
 
 
 def format_date_full(date_str: str, lang: str = "en") -> str:
@@ -421,13 +380,8 @@ def format_date_full(date_str: str, lang: str = "en") -> str:
     if not date_str:
         return ""
     try:
-        parts = str(date_str).split("-")
-        if len(parts) >= 3:
-            year, month, day = parts[:3]
-            month_index = int(month) - 1
-            day_num = int(day)
-            return f"{MONTHS.get(lang, MONTHS['en'])[month_index]} {day_num:02d}, {year}"
-        return str(date_str)
+        year, month, day = str(date_str).split("-")[:3]
+        return f"{_month_abbr(int(month) - 1, lang)} {int(day):02d}, {year}"
     except Exception:
         return str(date_str)
 
@@ -442,7 +396,6 @@ def format_date_jinja(value: Any, format: str = '%B %d, %Y') -> str:
     Returns:
         Formatted date string
     """
-    from datetime import date
     if isinstance(value, str):
         try:
             value = datetime.strptime(value, '%Y-%m-%d')
@@ -451,37 +404,6 @@ def format_date_jinja(value: Any, format: str = '%B %d, %Y') -> str:
     if isinstance(value, (datetime, date)):
         return value.strftime(format)
     return value
-
-
-# ============================================================================
-# TEMPLATE RENDERING
-# ============================================================================
-
-def render_template_safe(env: Environment, template_name: str, context: Dict) -> Optional[str]:
-    """Safely render a template with comprehensive error handling
-
-    Args:
-        env: Jinja2 Environment
-        template_name: Template filename
-        context: Context dictionary for rendering
-
-    Returns:
-        Rendered string or None on error
-    """
-    try:
-        template = env.get_template(template_name)
-    except TemplateNotFound:
-        print(f'{CROSS} {MESSAGES["error"]["template_not_found"].format(template_name)}')
-        return None
-    except Exception as e:
-        print(f'{CROSS} {MESSAGES["error"]["loading_template"].format(template_name, e)}')
-        return None
-
-    try:
-        return template.render(**context)
-    except Exception as e:
-        print(f'{CROSS} {MESSAGES["error"]["rendering_template"].format(template_name, e)}')
-        return None
 
 
 # ============================================================================
@@ -499,23 +421,18 @@ def extract_include_directives(content: str) -> Tuple[str, Dict[str, str]]:
     """
     include_directives = {}
 
-    # Posts include
-    if '{%- include posts.html -%}' in content or '{% include posts.html %}' in content:
-        include_directives[PLACEHOLDER_POSTS] = 'posts'
-        content = content.replace('{%- include posts.html -%}', PLACEHOLDER_POSTS)
-        content = content.replace('{% include posts.html %}', PLACEHOLDER_POSTS)
+    includes = [
+        ('posts.html', PLACEHOLDER_POSTS, 'posts'),
+        ('category.html', PLACEHOLDER_CATEGORY, 'category'),
+        ('archive.html', PLACEHOLDER_ARCHIVE, 'archive'),
+    ]
 
-    # Category include
-    if '{%- include category.html -%}' in content or '{% include category.html %}' in content:
-        include_directives[PLACEHOLDER_CATEGORY] = 'category'
-        content = content.replace('{%- include category.html -%}', PLACEHOLDER_CATEGORY)
-        content = content.replace('{% include category.html %}', PLACEHOLDER_CATEGORY)
-
-    # Archive include
-    if '{%- include archive.html -%}' in content or '{% include archive.html %}' in content:
-        include_directives[PLACEHOLDER_ARCHIVE] = 'archive'
-        content = content.replace('{%- include archive.html -%}', PLACEHOLDER_ARCHIVE)
-        content = content.replace('{% include archive.html %}', PLACEHOLDER_ARCHIVE)
+    for template_name, placeholder, directive in includes:
+        variants = (f'{{%- include {template_name} -%}}', f'{{% include {template_name} %}}')
+        if any(variant in content for variant in variants):
+            include_directives[placeholder] = directive
+            for variant in variants:
+                content = content.replace(variant, placeholder)
 
     return content, include_directives
 
@@ -593,7 +510,7 @@ def highlight_code_blocks(content: str) -> str:
             formatter = HtmlFormatter(cssclass=CSS_CLASS_HIGHLIGHT, noclasses=False)
             highlighted = highlight(code, lexer, formatter)
             return f'<div class="{CSS_CLASS_HIGHLIGHTER_ROUGE}">{highlighted}</div>'
-        except:
+        except Exception:
             return f'<div class="{CSS_CLASS_HIGHLIGHTER_ROUGE}"><div class="{CSS_CLASS_HIGHLIGHT}"><pre><code class="language-{lang}">{code}</code></pre></div></div>'
 
     return re.sub(PATTERN_CODE_BLOCK, highlight_match, content, flags=re.DOTALL)
@@ -699,8 +616,7 @@ class SiteBuilder:
         else:
             try:
                 with open(config_file, 'r', encoding='utf-8') as f:
-                    config = yaml.safe_load(f)
-                    config = config if config else {}
+                    config = yaml.safe_load(f) or {}
             except yaml.YAMLError as e:
                 print(f'{CROSS} {MESSAGES["error"]["invalid_yaml"].format(config_path, e)}')
                 print(f'{INFO}  {MESSAGES["info"]["using_default_config"]}')
@@ -889,10 +805,7 @@ class SiteBuilder:
         Returns:
             List of all posts sorted by date
         """
-        all_posts = []
-        for collection in self.posts.values():
-            all_posts.extend(collection)
-
+        all_posts = [post for collection in self.posts.values() for post in collection]
         all_posts.sort(key=lambda x: x.get('date', ''), reverse=True)
         return all_posts
 
@@ -1094,11 +1007,12 @@ class SiteBuilder:
             assets_dst.mkdir(parents=True, exist_ok=True)
 
             for item in assets_src.iterdir():
-                if item.name != FILE_CODECRAFT_CSS:
-                    if item.is_file():
-                        shutil.copy2(item, assets_dst / item.name)
-                    elif item.is_dir():
-                        shutil.copytree(item, assets_dst / item.name, dirs_exist_ok=True)
+                if item.name == FILE_CODECRAFT_CSS:
+                    continue
+                if item.is_file():
+                    shutil.copy2(item, assets_dst / item.name)
+                elif item.is_dir():
+                    shutil.copytree(item, assets_dst / item.name, dirs_exist_ok=True)
 
         # Copy examples directory if it exists
         examples_src = self.root_dir / 'examples'
@@ -1135,19 +1049,13 @@ class SiteBuilder:
             progress_step()
 
             total_posts = sum(len(posts) for posts in self.posts.values())
-            if total_posts > 0:
-                for collection_name, posts in self.posts.items():
-                    for post in posts:
-                        output_path = normalize_url_path(post['url'])
-                        self.render_page(post, output_path)
+            for posts in self.posts.values():
+                for post in posts:
+                    self.render_page(post, normalize_url_path(post['url']))
             progress_step()
 
             for page in self.pages:
-                if page['url'] == '/':
-                    output_path = ''
-                else:
-                    output_path = normalize_url_path(page['url'])
-                self.render_page(page, output_path)
+                self.render_page(page, normalize_url_path(page['url']))
             progress_step()
 
             self.generate_feed()
@@ -1213,9 +1121,8 @@ class BlogCLI:
 
             def log_error(self, format: str, *args) -> None:
                 """Suppress broken pipe errors"""
-                if args and len(args) > 0:
-                    if isinstance(args[0], str) and 'Broken pipe' in str(args[0]):
-                        return
+                if args and isinstance(args[0], str) and 'Broken pipe' in args[0]:
+                    return
                 super().log_error(format, *args)
 
             def send_head(self):
@@ -1454,7 +1361,7 @@ def main() -> None:
     )
 
     # Build command
-    build_parser = subparsers.add_parser(
+    subparsers.add_parser(
         'build',
         help=MESSAGES["help"]["build"],
     )
@@ -1472,13 +1379,13 @@ def main() -> None:
     )
 
     # Watch command
-    watch_parser = subparsers.add_parser(
+    subparsers.add_parser(
         'watch',
         help=MESSAGES["help"]["watch"]
     )
 
     # Clean command
-    clean_parser = subparsers.add_parser(
+    subparsers.add_parser(
         'clean',
         help=MESSAGES["help"]["clean"]
     )
