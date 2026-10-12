@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="575" height="358" viewBox="0 0 575 358" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" role="img" aria-label="Codecraft project structure">
+<style>
+  .bg { fill: #ffffff; stroke: #d1d9e0; }
+  .name-dir { fill: #1a7f37; font-weight: 600; }
+  .name-file { fill: #1f2328; }
+  .comment { fill: #5c6f5c; }
+  .folder { fill: #4ac26b; }
+  .file { fill: #eaeef2; stroke: #afb8c1; stroke-width: 1; }
+  .file-fold { fill: none; stroke: #afb8c1; stroke-width: 1; }
+  .guide { stroke: #93c4a0; stroke-width: 1; }
+  .dot { fill: #93c4a0; }
+  @media (prefers-color-scheme: dark) {
+    .bg { fill: #0d1117; stroke: #30363d; }
+    .name-dir { fill: #57d472; }
+    .name-file { fill: #e6edf3; }
+    .comment { fill: #8fa891; }
+    .folder { fill: #3fb950; }
+    .file { fill: #21262d; stroke: #484f58; }
+    .file-fold { stroke: #484f58; }
+    .guide { stroke: #4f6b57; }
+    .dot { fill: #4f6b57; }
+  }
+</style>
+
+<rect x="0.5" y="0.5" width="574" height="357" rx="6" class="bg"/>
+<line class="guide" x1="27.0" y1="14.0" x2="27.0" y2="36.0"/>
+<line class="guide" x1="27.0" y1="25.0" x2="38.0" y2="25.0"/>
+<line class="guide" x1="27.0" y1="36.0" x2="27.0" y2="58.0"/>
+<line class="guide" x1="27.0" y1="47.0" x2="38.0" y2="47.0"/>
+<line class="guide" x1="27.0" y1="58.0" x2="27.0" y2="80.0"/>
+<line class="guide" x1="27.0" y1="69.0" x2="38.0" y2="69.0"/>
+<line class="guide" x1="27.0" y1="80" x2="27.0" y2="102"/>
+<line class="guide" x1="49.0" y1="80.0" x2="49.0" y2="102.0"/>
+<line class="guide" x1="49.0" y1="91.0" x2="60.0" y2="91.0"/>
+<line class="guide" x1="27.0" y1="102" x2="27.0" y2="124"/>
+<path class="guide" fill="none" d="M49.0 102 V107.0 Q49.0 113.0 55.0 113.0 H60.0"/>
+<line class="guide" x1="27.0" y1="124.0" x2="27.0" y2="146.0"/>
+<line class="guide" x1="27.0" y1="135.0" x2="38.0" y2="135.0"/>
+<line class="guide" x1="27.0" y1="146.0" x2="27.0" y2="168.0"/>
+<line class="guide" x1="27.0" y1="157.0" x2="38.0" y2="157.0"/>
+<line class="guide" x1="27.0" y1="168" x2="27.0" y2="190"/>
+<line class="guide" x1="49.0" y1="168.0" x2="49.0" y2="190.0"/>
+<line class="guide" x1="49.0" y1="179.0" x2="60.0" y2="179.0"/>
+<line class="guide" x1="27.0" y1="190" x2="27.0" y2="212"/>
+<line class="guide" x1="49.0" y1="190.0" x2="49.0" y2="212.0"/>
+<line class="guide" x1="49.0" y1="201.0" x2="60.0" y2="201.0"/>
+<line class="guide" x1="27.0" y1="212" x2="27.0" y2="234"/>
+<line class="guide" x1="49.0" y1="212.0" x2="49.0" y2="234.0"/>
+<line class="guide" x1="49.0" y1="223.0" x2="60.0" y2="223.0"/>
+<line class="guide" x1="27.0" y1="234" x2="27.0" y2="256"/>
+<path class="guide" fill="none" d="M49.0 234 V239.0 Q49.0 245.0 55.0 245.0 H60.0"/>
+<line class="guide" x1="27.0" y1="256.0" x2="27.0" y2="278.0"/>
+<line class="guide" x1="27.0" y1="267.0" x2="38.0" y2="267.0"/>
+<line class="guide" x1="27.0" y1="278.0" x2="27.0" y2="300.0"/>
+<line class="guide" x1="27.0" y1="289.0" x2="38.0" y2="289.0"/>
+<line class="guide" x1="27.0" y1="300.0" x2="27.0" y2="322.0"/>
+<line class="guide" x1="27.0" y1="311.0" x2="38.0" y2="311.0"/>
+<path class="guide" fill="none" d="M27.0 322 V327.0 Q27.0 333.0 33.0 333.0 H38.0"/>
+<circle class="dot" cx="27.0" cy="14" r="2"/>
+<path class="folder" d="M39 21h4.5l1.4 1.6h8.1v7.8h-14z"/>
+<path class="folder" d="M39 43h4.5l1.4 1.6h8.1v7.8h-14z"/>
+<path class="folder" d="M39 65h4.5l1.4 1.6h8.1v7.8h-14z"/>
+<path class="folder" d="M61 87h4.5l1.4 1.6h8.1v7.8h-14z"/>
+<path class="folder" d="M61 109h4.5l1.4 1.6h8.1v7.8h-14z"/>
+<path class="folder" d="M39 131h4.5l1.4 1.6h8.1v7.8h-14z"/>
+<path class="folder" d="M39 153h4.5l1.4 1.6h8.1v7.8h-14z"/>
+<path class="folder" d="M61 175h4.5l1.4 1.6h8.1v7.8h-14z"/>
+<path class="folder" d="M61 197h4.5l1.4 1.6h8.1v7.8h-14z"/>
+<path class="folder" d="M61 219h4.5l1.4 1.6h8.1v7.8h-14z"/>
+<path class="file" d="M63.5 239h5l3 3v9h-8z"/><path class="file-fold" d="M68.5 239v3h3"/>
+<path class="file" d="M41.5 261h5l3 3v9h-8z"/><path class="file-fold" d="M46.5 261v3h3"/>
+<path class="file" d="M41.5 283h5l3 3v9h-8z"/><path class="file-fold" d="M46.5 283v3h3"/>
+<path class="file" d="M41.5 305h5l3 3v9h-8z"/><path class="file-fold" d="M46.5 305v3h3"/>
+<path class="file" d="M41.5 327h5l3 3v9h-8z"/><path class="file-fold" d="M46.5 327v3h3"/>
+<text y="25.0" dominant-baseline="central" font-size="13"><tspan class="name-dir" x="62.0">.github</tspan><tspan class="comment" x="208.8">workflows, Dependabot, README data</tspan></text>
+<text y="47.0" dominant-baseline="central" font-size="13"><tspan class="name-dir" x="62.0">assets</tspan><tspan class="comment" x="208.8">images for this README</tspan></text>
+<text y="69.0" dominant-baseline="central" font-size="13"><tspan class="name-dir" x="62.0">content</tspan><tspan class="comment" x="208.8">the posts, one folder per section</tspan></text>
+<text y="91.0" dominant-baseline="central" font-size="13"><tspan class="name-dir" x="84.0">code</tspan><tspan class="comment" x="208.8">code posts</tspan></text>
+<text y="113.0" dominant-baseline="central" font-size="13"><tspan class="name-dir" x="84.0">design</tspan><tspan class="comment" x="208.8">design posts</tspan></text>
+<text y="135.0" dominant-baseline="central" font-size="13"><tspan class="name-dir" x="62.0">examples</tspan><tspan class="comment" x="208.8">live examples for [example:N]</tspan></text>
+<text y="157.0" dominant-baseline="central" font-size="13"><tspan class="name-dir" x="62.0">themes</tspan><tspan class="comment" x="208.8">everything that shapes the site</tspan></text>
+<text y="179.0" dominant-baseline="central" font-size="13"><tspan class="name-dir" x="84.0">assets</tspan><tspan class="comment" x="208.8">logo, favicon, script, fonts</tspan></text>
+<text y="201.0" dominant-baseline="central" font-size="13"><tspan class="name-dir" x="84.0">sections</tspan><tspan class="comment" x="208.8">pages: home, archive, one per section</tspan></text>
+<text y="223.0" dominant-baseline="central" font-size="13"><tspan class="name-dir" x="84.0">templates</tspan><tspan class="comment" x="208.8">Jinja2 templates and the stylesheet</tspan></text>
+<text y="245.0" dominant-baseline="central" font-size="13"><tspan class="name-file" x="84.0">config.yaml</tspan><tspan class="comment" x="208.8">site configuration</tspan></text>
+<text y="267.0" dominant-baseline="central" font-size="13"><tspan class="name-file" x="62.0">CHANGELOG.md</tspan><tspan class="comment" x="208.8">every release, as it ships</tspan></text>
+<text y="289.0" dominant-baseline="central" font-size="13"><tspan class="name-file" x="62.0">codecraft.py</tspan><tspan class="comment" x="208.8">terminal CLI: build, serve, watch, clean, new</tspan></text>
+<text y="311.0" dominant-baseline="central" font-size="13"><tspan class="name-file" x="62.0">publish.py</tspan><tspan class="comment" x="208.8">the builder; CI runs this</tspan></text>
+<text y="333.0" dominant-baseline="central" font-size="13"><tspan class="name-file" x="62.0">requirements.txt</tspan><tspan class="comment" x="208.8">Python dependencies</tspan></text>
+</svg>

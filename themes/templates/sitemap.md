@@ -1,6 +1,6 @@
 {% autoescape false %}# Sitemap
 
-{{ entries|length }} pages and posts. The same list is published as [XML]({{ base_url }}/sitemap.xml) for search engines and as an [HTML page]({{ base_url }}/sitemap/).
+{{ entries|selectattr('section')|list|length }} posts, and the pages that list them. The same list is published as [XML]({{ base_url }}/sitemap.xml) for search engines and as an [HTML page]({{ base_url }}/sitemap/).
 
 | Page | Section | Last modified |
 | --- | --- | --- |

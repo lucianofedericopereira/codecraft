@@ -69,6 +69,7 @@ header,
 main p,
 main ul,
 main ol,
+main table,
 .search-input {
     font-family: var(--font-body), var(--font-basic);
 }

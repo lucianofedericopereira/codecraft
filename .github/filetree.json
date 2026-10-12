@@ -1,0 +1,17 @@
+{
+  "codecraft.py": "terminal CLI: build, serve, watch, clean, new",
+  "publish.py": "the builder; CI runs this",
+  "requirements.txt": "Python dependencies",
+  "CHANGELOG.md": "every release, as it ships",
+  "content": "the posts, one folder per section",
+  "content/code": "code posts",
+  "content/design": "design posts",
+  "examples": "live examples for [example:N]",
+  "themes": "everything that shapes the site",
+  "themes/config.yaml": "site configuration",
+  "themes/sections": "pages: home, archive, one per section",
+  "themes/templates": "Jinja2 templates and the stylesheet",
+  "themes/assets": "logo, favicon, script, fonts",
+  "assets": "images for this README",
+  ".github": "workflows, Dependabot, README data"
+}

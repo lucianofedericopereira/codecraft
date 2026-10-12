@@ -1,4 +1,4 @@
-<p>{{ entries|length }} pages and posts. The same list is published as <a href="sitemap.xml">XML</a> for search engines and as <a href="sitemap.md">Markdown</a>.</p>
+<p>{{ entries|selectattr('section')|list|length }} posts, and the pages that list them. The same list is published as <a href="sitemap.xml">XML</a> for search engines and as <a href="sitemap.md">Markdown</a>.</p>
 <table>
     <thead>
         <tr><th>Page</th><th>Section</th><th>Last modified</th></tr>

@@ -16,6 +16,9 @@ Every release, as it ships.
 - Added `<description>` and `<guid>` to RSS items
 - Added HTML minification with minify-html, on by default and turned off with `minify: false` in `themes/config.yaml`
 - Added warnings from `publish.py` on stderr when a post or the config cannot be read, where it used to skip them silently
+- Added a workflow that keeps the README's badges, project tree and release numbers current with sigilbadges, treegen2 and sigilmd, committing only when something changed
+- Changed the README into a plain guide to the engine, and corrected what it claimed: the license is MIT, `watch` does not reload the browser, and Python 3.11 is the minimum
+- Changed tables to the body font, a sans-serif, instead of the title font
 - Changed `codecraft.py` from a second copy of the builder into a terminal layer over `publish.py`, so a local build is byte-identical to what CI deploys
 - Changed `codecraft.py serve` to point `<base>` at the local server and read the site URL from the config instead of a hard-coded domain
 - Changed `codecraft.py watch` to rebuild when `publish.py` changes too

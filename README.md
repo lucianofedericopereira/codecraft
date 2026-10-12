@@ -2,776 +2,296 @@
   <img src="assets/logo.svg" alt="CodeCraft" width="400">
 </div>
 
-> A modern, lightweight static site generator built with Python and Jinja2 — no Jekyll, no Ruby, just Python simplicity.
+<p align="center">
+<!--[[ badge: id=read-the-blog logo=github message="Read the blog" color=24292F style=for-the-badge link="https://lucianofedericopereira.github.io/codecraft/" ]]-->
+<a href="https://lucianofedericopereira.github.io/codecraft/"><img src="assets/badges/read-the-blog.svg" alt="Read the blog"></a>
+<!--/-->
+</p>
 
-[![Build and Deploy](https://github.com/lucianofedericopereira/codecraft/workflows/Build%20and%20Deploy/badge.svg)](https://github.com/lucianofedericopereira/codecraft/actions)
-[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
+> A small static site generator in Python and Jinja2. It builds one blog, and it builds it well.
 
-**CodeCraft** is a Python-powered static site generator designed for developers who want full control over their blog without the complexity of Ruby-based tools. Built with modern Python practices, type hints, and a clean CLI interface.
+[![Build and Deploy](https://github.com/lucianofedericopereira/codecraft/workflows/Build%20and%20Deploy/badge.svg)](https://github.com/lucianofedericopereira/codecraft/actions) <!--[[ badge: id=python logo=python label="Python" message="3.11+" color=4D7A77 style=flat link="requirements.txt" ]]--><a href="requirements.txt"><img src="assets/badges/python.svg" alt="Python 3.11+"></a><!--/--> <!--[[ badge: id=license label="License" message="MIT" color=4D7A77 style=flat link="LICENSE" ]]--><a href="LICENSE"><img src="assets/badges/license.svg" alt="License MIT"></a><!--/--> <!--[[ badge: id=changelog label="Release" message="1.2" color=4D7A77 style=flat link="CHANGELOG.md" ]]--><a href="CHANGELOG.md"><img src="assets/badges/changelog.svg" alt="Release 1.2"></a><!--/-->
 
----
+Codecraft is the engine behind [design﹢code](https://lucianofedericopereira.github.io/codecraft/). I write in Markdown, push to GitHub, and a couple of minutes later the post is live. No Ruby, no Node toolchain, no theme marketplace. Two Python scripts, a folder of templates, and a folder of posts.
 
-## ✨ Features
-
-### 🚀 **Core Features**
-
-- **Pure Python** — No Ruby, no Jekyll, no complex dependencies
-- **Modern CLI** — Unified `codecraft.py` command for all operations
-- **Fast Builds** — Efficient markdown processing with Pygments syntax highlighting
-- **Live Preview** — Built-in development server with auto-reload
-- **GitHub Actions** — Automatic deployment to GitHub Pages
-- **RSS Feed** — Auto-generated feed for subscribers, with per-entry descriptions
-- **SEO Metadata** — Meta descriptions, Open Graph article tags, schema.org `BlogPosting` JSON-LD, canonical URLs and `sitemap.xml`, plus a themed human-readable sitemap at `sitemap/` and `sitemap.md`
-- **LLM Discoverability** — `llms.txt` index, `llms-full.txt` full text, every entry served as raw Markdown at `entry.md`, and home/archive/section pages as `index.md`, `archive.md`, `code.md`…
-- **Minified HTML** — Output minified with minify-html (toggle with `minify` in config)
-- **Client-side Search** — Powered by Lunr.js with pre-built index
-- **Multi-language Support** — Date formatting for English, Spanish, and Italian
-
-### 🎨 **Content Features**
-
-- **Markdown + Frontmatter** — Write in clean markdown with YAML metadata
-- **Syntax Highlighting** — Beautiful code blocks via Pygments
-- **Table of Contents** — Auto-generated TOC for long posts
-- **Mermaid Diagrams** — Embed flowcharts, sequence diagrams, and more
-- **CodePen Embeds** — Integrate live CodePen examples
-- **Interactive Examples** — Inline code viewer with tabs (HTML/CSS/JS) and live preview
-- **Custom Fonts** — Configure multiple fonts via YAML
-- **Comments** — Integrated Utterances (GitHub-based comments)
-
-### 🛠️ **Developer Experience**
-
-- **Type Hints** — Full type annotations throughout codebase
-- **Comprehensive Docs** — Docstrings on every function and class
-- **Clean Architecture** — Organized constants, utilities, and processing functions
-- **Extensible** — Easy to add custom filters, templates, and processors
-- **Automated Testing** — Optional linting with Ruff in CI/CD
-- **Dependabot** — Automatic dependency updates with PR grouping
+Hugo, Jekyll, Eleventy and Pelican are all excellent. They are also general-purpose, and general-purpose means carrying features for somebody else's blog. Codecraft carries only what this one needs: highlighted code, diagrams, live examples, search, a feed, and the plumbing that helps search engines and language models find the writing.
 
 ---
 
-## 📁 Project Structure
+## What it does
 
-```
-codecraft/
-├── codecraft.py               # Terminal CLI (build, serve, watch, new) on top of publish.py
-├── publish.py                 # Headless site builder (used by CI)
-├── CHANGELOG.md               # Release notes
-├── requirements.txt           # Python dependencies
-│
-├── content/                   # Markdown blog posts
-│   ├── code/                  # Programming & tech posts
-│   ├── design/                # Design & UX posts
-│   └── projects/              # Project showcases
-│
-├── themes/                    # Theme configuration
-│   ├── config.yaml            # Site configuration
-│   ├── templates/             # Jinja2 templates
-│   │   ├── codeCraft.html     # Main layout
-│   │   ├── posts.html         # Post listing
-│   │   ├── category.html      # Category pages
-│   │   ├── archive.html       # Archive page
-│   │   ├── feed.xml           # RSS template
-│   │   ├── search.json        # Search index template
-│   │   ├── sitemap.xml        # Sitemap template
-│   │   ├── sitemap.html, sitemap.md  # Human-readable sitemap (page body, Markdown)
-│   │   ├── llms.txt           # LLM index template
-│   │   ├── posts.md, category.md, archive.md  # Markdown versions of the listing includes
-│   │   └── llms-full.txt      # LLM full-text template
-│   ├── sections/              # Special pages (home, archive, etc.)
-│   └── assets/                # Static files (CSS, JS, fonts, images)
-│
-├── examples/                  # Interactive code examples
-│   ├── 1.html                 # Example files
-│   └── README.md              # Examples documentation
-│
-├── build/                     # Generated static site (gitignored)
-│
-└── .github/
-    ├── workflows/
-    │   └── publish.yml        # CI/CD workflow
-    └── dependabot.yml         # Dependency management
-```
+- **Writes in Markdown.** Each post is a `.md` file with a little YAML at the top. Code blocks are highlighted with Pygments at build time, so readers download colour, not a highlighter.
+- **Draws diagrams.** A `mermaid` code block becomes an SVG in the browser, and the library only loads on posts that ask for it.
+- **Runs live examples.** `[example:1]` drops a split-pane viewer into a post: HTML, CSS and JavaScript tabs on one side, the running result on the other.
+- **Searches without a server.** The build writes a JSON index; Lunr.js searches it in the browser.
+- **Feeds and comments.** An RSS feed for readers who still use one (I do), and Utterances for comments backed by GitHub issues.
+- **Gets found.** Real meta descriptions, Open Graph article tags, schema.org `BlogPosting` data, canonical URLs, a sitemap in XML, HTML and Markdown, and an `llms.txt` index. Every post is also published as plain Markdown next to its page.
+- **Ships small.** The HTML is minified on the way out.
 
 ---
 
-## 🚀 Quick Start
+## Getting started
 
-### Prerequisites
-
-- **Python 3.12+** (3.11+ also supported)
-- **pip** package manager
-- **Git** (for deployment)
-
-### Installation
+You need Python <!--[[ $release.python ]]-->3.11<!--/--> or later. CI builds with 3.12.
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/codecraft.git
+git clone https://github.com/lucianofedericopereira/codecraft.git
 cd codecraft
-
-# Install dependencies
 pip install -r requirements.txt
 ```
 
-### Create Your First Post
+Start a post:
 
 ```bash
-# Using the CLI (recommended)
 python codecraft.py new -c code -t "My First Post"
-
-# Or create manually
-cat > content/code/hello-world.md << 'EOF'
----
-title: "Hello World"
-date: 2025-12-24
-comments: true
-toc: true
----
-
-## Welcome to CodeCraft!
-
-This is my first post using CodeCraft.
-EOF
 ```
 
-### Build and Preview
+That writes `content/code/my-first-post.md` with the frontmatter filled in. Write, then look at it:
 
 ```bash
-# Build the site
-python codecraft.py build
-
-# Start local server
 python codecraft.py serve
-
-# Visit http://localhost:8000
 ```
 
-### Deploy to GitHub Pages
-
-```bash
-git add .
-git commit -m "Add new post"
-git push origin main
-
-# GitHub Actions automatically builds and deploys! ✨
-```
+and open http://localhost:8000. When it reads right, commit and push to `main`. GitHub Actions builds the site and publishes it to GitHub Pages.
 
 ---
 
-## 📝 Writing Posts
+## Writing posts
 
-### Frontmatter Options
+### Frontmatter
 
 ```yaml
 ---
-title: "Your Post Title"           # Required
-date: 2025-12-24                   # Required (YYYY-MM-DD)
-description: "One-line summary"    # Meta/OG/feed/llms.txt description (default: first paragraph)
-updated: 2026-01-15                # Last significant edit: sitemap lastmod, dateModified
-comments: true                     # Enable GitHub-based comments
-toc: true                          # Auto-generate table of contents
-mermaid: false                     # Enable Mermaid diagram support
-codepen: false                     # Enable CodePen embeds
-banner: false                      # Show banner on category pages
-sidebar: true                      # Show sidebar (default: true)
+title: "Your Post Title"          # required
+date: 2026-01-15                  # required, YYYY-MM-DD
+description: "One-line summary"   # optional, see below
+updated: 2026-02-01               # optional, last significant edit
+comments: true                    # Utterances comments
+toc: true                         # table of contents
+mermaid: false                    # load Mermaid for diagrams
+codepen: false                    # load the CodePen embed script
+banner: false                     # banner on section pages
+sidebar: true                     # list the page in the sidebar
 ---
 ```
 
-### Markdown Features
+Leave `description` out and the first paragraph of the post is used, trimmed to 160 characters. It is worth writing one when your opening line is a hook rather than a summary. The description shows up in search results, link previews, the feed and `llms.txt`.
 
-#### Code Blocks with Syntax Highlighting
+`updated` is for edits that matter. It becomes the post's `lastmod` in the sitemap and `dateModified` in its structured data. Fixing a typo is not an update.
 
-```markdown
+Anything you can set here can also have a default per folder, through `rules` in the config.
+
+### Code
+
+Fence it and name the language:
+
+````markdown
 ```python
-def hello_world():
-    print("Hello, CodeCraft!")
+def hello():
+    print("Hello, design﹢code")
 ```
-```
+````
 
-#### Mermaid Diagrams
+### Diagrams
 
-```markdown
+Set `mermaid: true`, then:
+
+````markdown
 ```mermaid
-graph LR
-    A[Start] --> B{Decision}
-    B -->|Yes| C[Action]
-    B -->|No| D[End]
+graph TD
+    A[Draft] --> B[Review]
+    B --> C[Publish]
 ```
-```
+````
 
-#### Interactive Examples
+To show a Mermaid block *as code* instead of drawing it, wrap it in a `~~~` fence.
 
-```markdown
-Create an HTML file in `examples/1.html`:
+### Live examples
 
-```html
-<!DOCTYPE html>
-<html>
-<head>
-  <style id="example-css">
-    button { background: linear-gradient(45deg, #667eea, #764ba2); }
-  </style>
-</head>
-<body>
-  <button>Click Me!</button>
-  <script id="example-js">
-    console.log('Interactive example!');
-  </script>
-</body>
-</html>
-```
-
-Then embed it in your post:
-
-```markdown
-[example:1]
-```
-
-This creates a split-pane viewer with tabs (HTML/CSS/JS) and live preview!
+Put a standalone HTML file in `examples/`, say `examples/1.html`, with its CSS in `<style id="example-css">` and its JavaScript in `<script id="example-js">`. Then write `[example:1]` on a line of its own in the post. [`examples/README.md`](examples/README.md) has the full template.
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
-Edit `themes/config.yaml` to customize your site:
+Everything lives in `themes/config.yaml`.
 
 ```yaml
-# Site metadata
+post_limit: 10            # posts on the home page
+minify: true              # minify the HTML output
+search_file: https://you.github.io/blog/search.json
+
+base:
+  url: you.github.io
+  folder: blog            # leave empty for a user or organization site
+
 meta:
   title: design﹢code
   tagline: CodeCraft Chronicles
   author: Your Name
-  repository: https://github.com/yourusername
-  license: GPLv2
+  repository: https://github.com/you
+  license: GPLv2          # the license of your posts, shown under each one
   locale: en
 
-# Deployment settings
-base:
-  url: yourusername.github.io
-  folder: repository-name  # Leave empty for user/org pages
-
-# Social links
-links:
-  LinkedIn: https://linkedin.com/in/yourprofile
-  GitHub: https://github.com/yourusername
-
-# Minify generated HTML (default: true)
-minify: true
-
-# Post categories
-sections:
-  - design
-  - code
-  - projects
-
-# Custom fonts
 assets:
+  images:
+    logo: codeCraft.ico
+    favicon: codeCraft.ico
   fonts:
     - type: title
       name: Mediaan
       weight: Regular
       extension: woff2
-    - type: body
-      name: VisueltPro
-      weight: Regular
-      extension: woff2
 
-# Feature defaults by path
-rules:
+links:                    # sidebar links
+  GitHub: https://github.com/you
+
+sections:
+  - design
+  - code
+  - projects
+
+rules:                    # frontmatter defaults by path
   - scope:
       path: content/code
     features:
       toc: true
-      comments: false
 
-# External scripts
-scripts:
+comments:                 # Utterances
+  theme: github-light
+  repo: you/comments
+  issue: title
+  src: https://utteranc.es/client.js
+
+scripts:                  # CDN versions
   mermaid: 12.1.0
   lunr: 2.3.9
-
-# Comments (Utterances)
-comments:
-  theme: github-light
-  repo: yourusername/comments
-  issue: title
 ```
 
 ---
 
-## 🔧 CLI Reference
+## The command line
 
-The unified `codecraft.py` CLI provides all tools you need:
-
-### Build Commands
+`codecraft.py` is for working on the blog from a terminal.
 
 ```bash
-# Build the entire site
-python codecraft.py build
-
-# Clean build artifacts
-python codecraft.py clean
+python codecraft.py build              # build into build/
+python codecraft.py serve              # build if needed, serve on :8000
+python codecraft.py serve -p 3000      # another port
+python codecraft.py watch              # rebuild whenever something changes
+python codecraft.py clean              # remove build/ and __pycache__/
+python codecraft.py new -c design -t "UI Tips" -s ui-tips -d 2026-01-15
 ```
 
-### Development Server
+`new` takes `--mermaid`, `--codepen`, `--no-comments` and `--no-toc` for the frontmatter, `-e` to open the post in `$EDITOR`, and `-f` to overwrite without asking.
 
-```bash
-# Start server on default port (8000)
-python codecraft.py serve
+`serve` serves exactly what CI would deploy. It rewrites `<base>` and the site's own URLs on the fly so links resolve on localhost, and it turns the production console silencing off so you can see errors.
 
-# Use custom port
-python codecraft.py serve -p 3000
-
-# The server serves the same build CI deploys, rewriting on the fly:
-# - Points <base> and absolute site URLs at http://localhost:PORT/
-# - Disables console suppression scripts
-```
-
-### Auto-Rebuild
-
-```bash
-# Watch for changes and rebuild (requires pyinotify)
-python codecraft.py watch
-
-# Install pyinotify:
-pip install pyinotify
-
-# Or use inotify-tools (Linux):
-# Ubuntu/Debian: sudo apt install inotify-tools
-# Fedora: sudo dnf install inotify-tools
-```
-
-### Create Posts
-
-```bash
-# Basic post creation
-python codecraft.py new -c code -t "My Article Title"
-
-# With custom slug
-python codecraft.py new -c design -t "UI Tips" -s ui-design-tips
-
-# With features enabled
-python codecraft.py new -c code -t "Python Tutorial" --mermaid --codepen
-
-# Open in editor after creation
-python codecraft.py new -c code -t "My Post" --edit
-
-# Specify custom date
-python codecraft.py new -c code -t "Post" -d 2025-12-25
-
-# Force overwrite existing file
-python codecraft.py new -c code -t "Post" -f
-```
-
-### Help
-
-```bash
-# General help
-python codecraft.py --help
-
-# Command-specific help
-python codecraft.py new --help
-python codecraft.py serve --help
-```
+`watch` needs `pyinotify` (`pip install pyinotify`). It rebuilds on every change but does not reload the browser for you.
 
 ---
 
-## 🚢 Deployment
+## How it is put together
 
-### GitHub Pages (Automatic)
+<!-- filetree:start dir="." style="svg" color="green" descriptions=".github/filetree.json" max-depth="2" exclude="content/**/*.md,themes/assets/fonts,themes/assets/*.*,themes/templates/*.*,themes/sections/*.*,examples/*.html,assets/*.*,assets/badges,.github/workflows,.github/*.*,LICENSE,README.md,.nojekyll,.gitignore" svg-output="assets/project-tree.svg" title="Codecraft project structure" -->
+![Codecraft project structure](assets/project-tree.svg)
+<!-- filetree:end -->
 
-1. **Enable GitHub Pages**
-   - Go to **Settings** → **Pages**
-   - Under **Source**, select **GitHub Actions**
+Two scripts, one builder.
 
-2. **Push to Main**
-   ```bash
-   git add .
-   git commit -m "Update content"
-   git push origin main
-   ```
+`publish.py` holds the whole build. It has no terminal dependencies, prints plain progress lines, and is what GitHub Actions runs. `codecraft.py` imports it and adds the things you only want at a keyboard: the progress bar, coloured warnings, the dev server, the watcher and post scaffolding. A local build is byte for byte what CI deploys.
 
-3. **Automatic Build**
-   - GitHub Actions triggers on push
-   - Builds site with Python 3.12
-   - Runs optional linting with Ruff
-   - Deploys to GitHub Pages
-   - Live in ~2 minutes
+A build does this, in order:
 
-### Manual Deployment
+1. Empty `build/`.
+2. Read the posts in `content/<section>/` and the pages in `themes/sections/`.
+3. Render every post through `codeCraft.html`.
+4. Render the pages, expanding their `{% include %}` listings.
+5. Write `feed.xml` and `search.json`.
+6. Write `sitemap.xml`, `sitemap/`, `sitemap.md`, `llms.txt`, `llms-full.txt`, and the Markdown version of every post and page.
+7. Copy the theme assets and examples, and generate the CSS with the configured fonts.
 
-```bash
-# Build locally
-python codecraft.py build
+If a post can't be read, the build says so and carries on without it.
 
-# The build/ directory contains the complete static site
-# Deploy to any static host (Netlify, Vercel, etc.)
-```
+### What the build publishes
 
-### Manual GitHub Actions Trigger
+| Path | What it is |
+|---|---|
+| `code/my-post/` | the post |
+| `code/my-post.md` | the post's Markdown source |
+| `index.md`, `archive.md`, `code.md`… | the home, archive and section pages as Markdown |
+| `feed.xml` | RSS feed |
+| `search.json` | search index for Lunr.js |
+| `sitemap.xml` | sitemap for search engines |
+| `sitemap/`, `sitemap.md` | the same sitemap for people, in the site's theme, and as Markdown |
+| `llms.txt` | an index of every page and post for language models |
+| `llms-full.txt` | every post in one file |
 
-1. Go to **Actions** tab
-2. Select "Build and Deploy"
-3. Click **Run workflow**
-
----
-
-## 🏗️ Architecture
-
-### Core Components
-
-`publish.py` is the headless builder: CI runs `python publish.py` directly. `codecraft.py` imports its `SiteBuilder` and only adds terminal concerns (colored warnings, progress bar, dev server, watcher, post scaffolding), so both produce identical output.
-
-```python
-# publish.py — SiteBuilder class
-class SiteBuilder:
-    def steps(self) -> list:
-        """Ordered (label, action) build pipeline:
-        1. Clean output directory
-        2. Collect posts (content/) and pages (themes/sections/)
-        3. Render posts
-        4. Render pages (minified when `minify` is on)
-        5. Generate feed.xml and search.json
-        6. Write sitemap.xml, llms.txt, llms-full.txt and per-entry .md sources
-        7. Copy static assets and generate CSS
-        """
-
-    def warn(self, message: str) -> None:
-        """Non-fatal problems: stderr headless, colored in the CLI"""
-```
-
-### Markdown Processing Pipeline
-
-1. **Extract Include Directives** — `{% include posts.html %}` → placeholders
-2. **Extract Example Shortcodes** — `[example:1]` → placeholders
-3. **Extract Mermaid Blocks** — Save for later restoration
-4. **Highlight Code Blocks** — Pygments syntax highlighting
-5. **Convert to HTML** — Python-Markdown with extensions
-6. **Add CSS Classes** — Inline code classes
-7. **Restore Mermaid** — Insert with proper classes
-8. **Process Includes** — Render sub-templates
-9. **Render Final Page** — Complete HTML output
-
-### Template Hierarchy
-
-```
-codeCraft.html (main layout)
-├── posts.html (recent posts listing)
-├── category.html (category-specific posts)
-└── archive.html (all posts by year)
-```
+Nothing links to the sitemap pages. `sitemap.xml` lists them, and `llms.txt` links the Markdown one, which is all a crawler needs.
 
 ---
 
-## 🎨 Customization
+## Making it yours
 
-### Custom Templates
+Templates live in `themes/templates/`:
 
-Edit `themes/templates/codeCraft.html`:
+| File | Renders |
+|---|---|
+| `codeCraft.html` | the page layout, with `head.html`, `aside.html` and `title.html` |
+| `posts.html` | latest posts on the home page |
+| `category.html` | a section's posts by year |
+| `archive.html` | every post by year |
+| `posts.md`, `category.md`, `archive.md` | the same listings for the Markdown pages |
+| `codeCraft.css` | the stylesheet, itself a template so fonts come from the config |
+| `feed.xml`, `search.json`, `sitemap.xml`, `sitemap.html`, `sitemap.md`, `llms.txt`, `llms-full.txt` | the generated files |
 
-```jinja2
-<!DOCTYPE html>
-<html lang="{{ site.meta.locale }}">
-<head>
-  <title>{{ page.title }} - {{ site.meta.title }}</title>
-  <!-- Custom filters available -->
-  <meta name="date" content="{{ page.date | date_format('%Y-%m-%d') }}">
-</head>
-<body>
-  {{ page.content | safe }}
-</body>
-</html>
-```
+Pages are Markdown files in `themes/sections/`. `home.md` becomes the front page, and every other file becomes a page at its own name.
 
-### Available Jinja2 Filters
+Templates get these filters on top of Jinja2's own: `date_format(format)`, `month_year`, `date_archive`, `date_full`, `year`, `strip_whitespace` and `split(separator)`.
 
-- `date_format(format)` — Format dates with strftime
-- `month_year(lang)` — "Jan 2024" format
-- `date_archive(lang)` — "Nov 17" format
-- `date_full(lang)` — "Nov 17, 2024" format
-- `year` — Extract year from date
-- `strip_whitespace` — Remove all whitespace
-- `split(separator)` — Split string into list
+### Adding a section
 
-### Custom CSS
+1. Add it to `sections` in `themes/config.yaml`.
+2. Create `content/tutorials/`.
+3. Add `themes/sections/tutorials.md`:
 
-Edit `themes/assets/codeCraft.css` (Jinja2 template):
-
-```css
-/* Custom fonts are injected from config.yaml */
-{% for font in fonts %}
-@font-face {
-  font-family: '{{ font.name }}';
-  src: url('{{ font.name }}.{{ font.extension }}');
-  font-weight: {{ font.weight_num }};
-}
-{% endfor %}
-
-/* Your custom styles */
-body {
-  font-family: 'VisueltPro', sans-serif;
-}
-```
-
-### Adding New Sections
-
-1. Edit `themes/config.yaml`:
-   ```yaml
-   sections:
-     - design
-     - code
-     - projects
-     - tutorials  # New section
-   ```
-
-2. Create directory:
-   ```bash
-   mkdir content/tutorials
-   ```
-
-3. Create category page:
-   ```bash
-   cat > themes/sections/tutorials.md << 'EOF'
+   ```markdown
    ---
    title: Tutorials
    ---
    {% include category.html %}
-   EOF
    ```
 
-4. Add posts:
-   ```bash
-   python codecraft.py new -c tutorials -t "My First Tutorial"
-   ```
+4. Write posts in `content/tutorials/`.
 
 ---
 
-## 🧪 Testing
+## This README
 
-### Local Testing
+The badges, the project tree and the release numbers above are generated. A workflow runs [sigilbadges](https://github.com/lucianofedericopereira/sigilbadges), [treegen2](https://github.com/lucianofedericopereira/treegen2) and [sigilmd](https://github.com/lucianofedericopereira/sigilmd) on every push to `main` and commits whatever changed. The tree's notes live in `.github/filetree.json` and the numbers in `.github/readme.toml`. Edit those, not the generated blocks.
 
-```bash
-# Full build test
-python codecraft.py clean
-python codecraft.py build
-ls -la build/
-
-# Test specific outputs
-cat build/index.html
-cat build/feed.xml
-cat build/search.json
-
-# Preview in browser
-python codecraft.py serve
-open http://localhost:8000
-```
-
-### Validate Generated HTML
-
-```bash
-# Install validator
-npm install -g html-validator-cli
-
-# Validate output
-html-validator build/index.html
-```
-
-### Check RSS Feed
-
-```bash
-# View feed
-cat build/feed.xml
-
-# Validate feed (online)
-# https://validator.w3.org/feed/
-```
+This is release <!--[[ $release.version ]]-->1.2<!--/-->. The [changelog](CHANGELOG.md) has the rest.
 
 ---
 
-## 🐛 Troubleshooting
+## When something goes wrong
 
-### Build Issues
+**`ModuleNotFoundError`.** Run `pip install -r requirements.txt` again, in the environment you're actually using.
 
-**Problem:** Build fails with `ModuleNotFoundError`
-```bash
-# Solution: Reinstall dependencies
-pip install --upgrade -r requirements.txt
-```
+**The live site didn't change.** Check the Actions tab first. In the repository settings, **Pages → Source** has to be **GitHub Actions**. After a green run, the Pages CDN can take a minute or two.
 
-**Problem:** Python version error
-```bash
-# Check version
-python --version  # Should be 3.12+
+**Port 8000 is taken.** Use `python codecraft.py serve -p 3001`.
 
-# Use specific version
-python3.12 codecraft.py build
-```
-
-**Problem:** Template not found
-```bash
-# Ensure templates directory exists
-ls themes/templates/
-
-# Verify template names in publish.py match files
-```
-
-### Deployment Issues
-
-**Problem:** GitHub Actions fails
-```bash
-# Check Python version in .github/workflows/publish.yml
-# Should be 3.12
-
-# Verify requirements.txt is committed
-git ls-files requirements.txt
-
-# Check Actions logs on GitHub
-```
-
-**Problem:** Site not updating after push
-```bash
-# Check Actions status
-# GitHub → Actions tab → View workflow run
-
-# Clear browser cache
-# Wait 2-3 minutes for GitHub Pages CDN
-
-# Verify GitHub Pages settings
-# Settings → Pages → Source: GitHub Actions
-```
-
-### Development Server Issues
-
-**Problem:** Port already in use
-```bash
-# Use different port
-python codecraft.py serve -p 3001
-
-# Kill process using port 8000 (Linux/Mac)
-lsof -ti:8000 | xargs kill -9
-```
-
-**Problem:** Assets not loading locally
-```bash
-# The dev server rewrites paths automatically
-# If issues persist, check browser console
-
-# Verify asset paths in build/
-ls -R build/assets/
-```
+**A post is missing.** Read the build output. A post with broken frontmatter is skipped with a warning that names the file.
 
 ---
 
-## 📊 Performance
+## License
 
-### Build Times
+The engine is [MIT](LICENSE). The posts on design﹢code are published under the license set in `themes/config.yaml`.
 
-- **Small site** (10 posts): ~0.5s
-- **Medium site** (50 posts): ~2s
-- **Large site** (200 posts): ~8s
+## Built with
 
-### Optimizations
+[Python](https://python.org), [Jinja2](https://jinja.palletsprojects.com/), [Python-Markdown](https://python-markdown.github.io/), [Pygments](https://pygments.org/), [PyYAML](https://pyyaml.org/), [python-frontmatter](https://github.com/eyeseast/python-frontmatter), [minify-html](https://github.com/wilsonzlin/minify-html), [Lunr.js](https://lunrjs.com/), [Mermaid](https://mermaid.js.org/) and [Utterances](https://utteranc.es/), deployed with [GitHub Actions](https://github.com/features/actions) to [GitHub Pages](https://pages.github.com/).
 
-- Pip caching in GitHub Actions
-- Incremental builds not needed (fast enough)
-- Static file copying uses `shutil.copy2` (preserves metadata)
-- Pygments caching via Python imports
-
----
-
-## 🔒 Security
-
-### Best Practices
-
-- ✅ Minimal permissions in GitHub Actions
-- ✅ No secret tokens in repository
-- ✅ Dependabot for automated updates
-- ✅ YAML safe loading (no arbitrary code execution)
-- ✅ Jinja2 autoescape enabled
-- ✅ No user input in templates
-
-### Content Security
-
-- Use `| safe` filter sparingly
-- Validate URLs in config
-- Review Dependabot PRs before merging
-- Monitor GitHub Actions logs
-
----
-
-## 🤝 Contributing
-
-Contributions welcome! This is a personal project, but feel free to:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-### Development Setup
-
-```bash
-# Clone your fork
-git clone https://github.com/yourusername/codecraft.git
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Install dev dependencies
-pip install ruff pyinotify
-
-# Run linter
-ruff check .
-
-# Test build
-python codecraft.py build
-python codecraft.py serve
-```
-
----
-
-## 📄 License
-
-This project is licensed under the **GNU General Public License v2.0** (GPLv2).
-
-See [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-Built with these excellent tools:
-
-- **[Python](https://python.org)** — Programming language
-- **[Jinja2](https://jinja.palletsprojects.com/)** — Template engine
-- **[Python-Markdown](https://python-markdown.github.io/)** — Markdown processor
-- **[Pygments](https://pygments.org/)** — Syntax highlighting
-- **[PyYAML](https://pyyaml.org/)** — YAML parser
-- **[python-frontmatter](https://github.com/eyeseast/python-frontmatter)** — Frontmatter parser
-- **[minify-html](https://github.com/wilsonzlin/minify-html)** — HTML minifier
-- **[Lunr.js](https://lunrjs.com/)** — Client-side search
-- **[Mermaid](https://mermaid.js.org/)** — Diagram rendering
-- **[Utterances](https://utteranc.es/)** — GitHub-based comments
-- **[GitHub Actions](https://github.com/features/actions)** — CI/CD
-- **[GitHub Pages](https://pages.github.com/)** — Hosting
-
-Inspired by the simplicity of static site generators, but built with Python's elegance.
-
----
-
-## 📞 Support
-
-- **Issues:** [GitHub Issues](https://github.com/lucianofedericopereira/codecraft/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/lucianofedericopereira/codecraft/discussions)
-- **Author:** [Luciano Pereira](https://github.com/lucianofedericopereira)
-
----
-
-**Made with ❤️ using Python + Jinja2**
-
-*No Jekyll, no Ruby, just Python simplicity.*
+Written by [Luciano Pereira](https://github.com/lucianofedericopereira).
