@@ -23,7 +23,7 @@ jobs:
     - name: Release numbers
       uses: lucianofedericopereira/sigilmd@v0.2.1
       with:
-        config: .github/readme.toml
+        config: .github/sigilmd.toml
         commit: 'false'
 
     - name: Badges

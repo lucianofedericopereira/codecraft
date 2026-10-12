@@ -268,7 +268,7 @@ Templates get these filters on top of Jinja2's own: `date_format(format)`, `mont
 
 ## This README
 
-The badges, the project tree and the release numbers above are generated. A workflow runs [sigilbadges](https://github.com/lucianofedericopereira/sigilbadges), [treegen2](https://github.com/lucianofedericopereira/treegen2) and [sigilmd](https://github.com/lucianofedericopereira/sigilmd) on every push to `main` and commits whatever changed. The tree's notes live in `.github/filetree.json` and the numbers in `.github/readme.toml`. Edit those, not the generated blocks.
+The badges, the project tree and the release numbers above are generated. A workflow runs [sigilbadges](https://github.com/lucianofedericopereira/sigilbadges), [treegen2](https://github.com/lucianofedericopereira/treegen2) and [sigilmd](https://github.com/lucianofedericopereira/sigilmd) on every push to `main` and commits whatever changed. The tree's notes live in `.github/filetree.json` and the numbers in `.github/sigilmd.toml`. Edit those, not the generated blocks.
 
 This is release <!--[[ $release.version ]]-->1.2<!--/-->. The [changelog](CHANGELOG.md) has the rest.
 
