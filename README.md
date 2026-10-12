@@ -22,8 +22,8 @@
 - **Live Preview** — Built-in development server with auto-reload
 - **GitHub Actions** — Automatic deployment to GitHub Pages
 - **RSS Feed** — Auto-generated feed for subscribers, with per-entry descriptions
-- **SEO Metadata** — Meta descriptions, Open Graph article tags, schema.org `BlogPosting` JSON-LD, canonical URLs and `sitemap.xml`
-- **LLM Discoverability** — `llms.txt` index, `llms-full.txt` full text, and every entry served as raw Markdown at `entry.md`
+- **SEO Metadata** — Meta descriptions, Open Graph article tags, schema.org `BlogPosting` JSON-LD, canonical URLs and `sitemap.xml`, plus a themed human-readable sitemap at `sitemap/` and `sitemap.md`
+- **LLM Discoverability** — `llms.txt` index, `llms-full.txt` full text, every entry served as raw Markdown at `entry.md`, and home/archive/section pages as `index.md`, `archive.md`, `code.md`…
 - **Minified HTML** — Output minified with minify-html (toggle with `minify` in config)
 - **Client-side Search** — Powered by Lunr.js with pre-built index
 - **Multi-language Support** — Date formatting for English, Spanish, and Italian
@@ -74,7 +74,9 @@ codecraft/
 │   │   ├── feed.xml           # RSS template
 │   │   ├── search.json        # Search index template
 │   │   ├── sitemap.xml        # Sitemap template
+│   │   ├── sitemap.html, sitemap.md  # Human-readable sitemap (page body, Markdown)
 │   │   ├── llms.txt           # LLM index template
+│   │   ├── posts.md, category.md, archive.md  # Markdown versions of the listing includes
 │   │   └── llms-full.txt      # LLM full-text template
 │   ├── sections/              # Special pages (home, archive, etc.)
 │   └── assets/                # Static files (CSS, JS, fonts, images)
@@ -166,6 +168,7 @@ git push origin main
 title: "Your Post Title"           # Required
 date: 2025-12-24                   # Required (YYYY-MM-DD)
 description: "One-line summary"    # Meta/OG/feed/llms.txt description (default: first paragraph)
+updated: 2026-01-15                # Last significant edit: sitemap lastmod, dateModified
 comments: true                     # Enable GitHub-based comments
 toc: true                          # Auto-generate table of contents
 mermaid: false                     # Enable Mermaid diagram support

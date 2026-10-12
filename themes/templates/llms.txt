@@ -2,8 +2,12 @@
 
 > {{ site.meta.tagline }}
 
-Blog by {{ site.meta.author }}. Every entry is also published as raw Markdown at the same address with `.md` in place of the trailing slash; the links below point there.
-{% for section, entries in posts.items() if entries %}
+Blog by {{ site.meta.author }}. Every entry and page is also published as Markdown at the same address with `.md` in place of the trailing slash (`index.md` for the home page); the links below point there.
+
+## Pages
+
+{% for page in pages if not page.empty %}- [{{ page.title }}]({{ base_url }}/{{ page.md_url }})
+{% endfor %}{% for section, entries in posts.items() if entries %}
 ## {{ section|capitalize }}
 
 {% for item in entries %}- [{{ item.title }}]({{ base_url }}/{{ item.md_url }}): {{ item.description }}
@@ -11,4 +15,5 @@ Blog by {{ site.meta.author }}. Every entry is also published as raw Markdown at
 ## Optional
 
 - [Full text]({{ base_url }}/llms-full.txt): every entry in a single Markdown file
+- [Sitemap]({{ base_url }}/sitemap.md): every page and post with its last modification date
 {% endautoescape %}

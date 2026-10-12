@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-{% for page in pages %}  <url><loc>{{ base_url }}/{{ page.url.lstrip('/') }}</loc></url>
-{% endfor %}{% for item in all_posts %}  <url><loc>{{ base_url }}/{{ item.url }}</loc><lastmod>{{ item.date }}</lastmod></url>
-{% endfor %}</urlset>
+{% for entry in entries %}  <url><loc>{{ base_url }}/{{ entry.url }}</loc>{% if entry.lastmod %}<lastmod>{{ entry.lastmod }}</lastmod>{% endif %}</url>
+{% endfor %}  <url><loc>{{ base_url }}/sitemap/</loc><lastmod>{{ newest }}</lastmod></url>
+  <url><loc>{{ base_url }}/sitemap.md</loc><lastmod>{{ newest }}</lastmod></url>
+</urlset>

@@ -4,11 +4,14 @@ Every release, as it ships.
 
 ## v1.2 — 2026-10-12
 
-- Added `sitemap.xml`, listing every page and post with the post date as `lastmod`
+- Added `sitemap.xml`, listing every post with its date as `lastmod` and every page with the date of the newest post it lists; a section page with no posts is left out
+- Added a human-readable sitemap in the site's own theme at `sitemap/`, and as `sitemap.md`; neither is linked from the pages, `sitemap.xml` lists both and `llms.txt` links the Markdown one
 - Added `llms.txt`, an index of every entry with its description, and `llms-full.txt`, the full text of every entry in one file
 - Added each entry as raw Markdown beside its page, so `code/my-post/` is also served as `code/my-post.md`, linked from the page as a `text/markdown` alternate
+- Added Markdown versions of the home, archive and section pages (`index.md`, `archive.md`, `code.md`, …), rendered through `posts.md`, `category.md` and `archive.md` templates and listed in `llms.txt`
 - Added a `description` frontmatter field; without one, the post's first paragraph is used, cut at a word boundary within 160 characters
-- Added Open Graph article tags to posts — `og:type article`, `article:published_time`, `article:author`, `article:section` — and `twitter:description` everywhere
+- Added an `updated` frontmatter field, used as the sitemap `lastmod`, JSON-LD `dateModified` and `article:modified_time`
+- Added Open Graph article tags to posts — `og:type article`, `article:published_time`, `article:section`
 - Added schema.org JSON-LD generated as JSON: `BlogPosting` on posts, `WebSite` on the home page, `WebPage` on section pages, with an absolute logo URL
 - Added `<description>` and `<guid>` to RSS items
 - Added HTML minification with minify-html, on by default and turned off with `minify: false` in `themes/config.yaml`
@@ -19,6 +22,8 @@ Every release, as it ships.
 - Changed the meta description, `og:description` and JSON-LD description to the post's description instead of a copy of the title
 - Changed page titles to keep their capitalization, so `GitHub` and `SVG` are no longer lowercased
 - Changed the feed's alternate link to `application/rss+xml`, titled from the config
+- Changed section pages to build in filename order, so every machine produces the same output
+- Removed head tags that were wrong or had no effect: `X-UA-Compatible`, the non-standard `copyright` and `repository`, `robots: index, follow` (the default), `og:locale` in a format Open Graph does not accept, `article:author` holding a name where a profile URL is expected, the `twitter:title` and `twitter:description` copies of their Open Graph tags, and a preconnect to the site's own origin
 - Changed Mermaid to initialize with `startOnLoad: false`, as rendering is explicit, and to log render errors
 - Fixed the canonical URL, `og:url` and JSON-LD `url` missing the slash between the site folder and the page path (`…/codecraftcode/post/`), which pointed every post at a 404
 - Fixed a `mermaid` code block shown as an example inside a `~~~` fence rendering as the text `MERMAID_PLACEHOLDER_0`

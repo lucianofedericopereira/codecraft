@@ -1,0 +1,9 @@
+<p>{{ entries|length }} pages and posts. The same list is published as <a href="sitemap.xml">XML</a> for search engines and as <a href="sitemap.md">Markdown</a>.</p>
+<table>
+    <thead>
+        <tr><th>Page</th><th>Section</th><th>Last modified</th></tr>
+    </thead>
+    <tbody>
+{% for entry in entries %}        <tr data-clickable><td><a href="{{ entry.url }}">{{ entry.title }}</a></td><td>{{ entry.section }}</td><td style="white-space: nowrap">{{ entry.lastmod|date_full }}</td></tr>
+{% endfor %}    </tbody>
+</table>

@@ -49,6 +49,8 @@ FILE_CODECRAFT_CSS = 'codeCraft.css'
 FILE_FEED = 'feed.xml'
 FILE_SEARCH = 'search.json'
 FILE_SITEMAP = 'sitemap.xml'
+FILE_SITEMAP_HTML = 'sitemap.html'
+FILE_SITEMAP_MD = 'sitemap.md'
 FILE_LLMS = 'llms.txt'
 FILE_LLMS_FULL = 'llms-full.txt'
 
@@ -688,6 +690,7 @@ class SiteBuilder:
             'title': post.get('title', ''),
             'description': post.get('description') or extract_description(content_html) or self.config['meta']['tagline'],
             'date': post.get('date', ''),
+            'updated': post.get('updated', ''),
             'comments': post.get('comments', path_defaults.get('comments', False)),
             'mermaid': post.get('mermaid', path_defaults.get('mermaid', False)),
             'codepen': post.get('codepen', path_defaults.get('codepen', False)),
@@ -738,7 +741,7 @@ class SiteBuilder:
             self.warn(MESSAGES['sections_not_found'].format(sections_dir))
             return
 
-        for page_file in sections_dir.glob('*.md'):
+        for page_file in sorted(sections_dir.glob('*.md')):
             page_data = self.parse_markdown_file(page_file, is_post=False)
 
             if page_data is None:
@@ -746,11 +749,27 @@ class SiteBuilder:
 
             if page_file.stem == 'home':
                 page_data['url'] = '/'
+                page_data['md_url'] = 'index.md'
             else:
                 page_data['url'] = f"{page_file.stem}/"
+                page_data['md_url'] = f"{page_file.stem}.md"
                 page_data['section'] = page_file.stem
 
             self.pages.append(page_data)
+
+    def annotate_pages(self) -> None:
+        """Give each page the date of the newest post it lists, and flag empty section pages"""
+        all_posts = self.get_all_posts()
+        for page in self.pages:
+            directives = page.get('include_directives', {}).values()
+            if 'category' in directives:
+                listed = self.posts.get(page.get('section'), [])
+            elif 'posts' in directives or 'archive' in directives:
+                listed = all_posts
+            else:
+                listed = []
+            page['lastmod'] = max((str(post.get('updated') or post['date']) for post in listed), default='')
+            page['empty'] = 'category' in directives and not listed
 
     def get_all_posts(self) -> List[Dict]:
         """Get all posts combined from all sections
@@ -877,6 +896,7 @@ class SiteBuilder:
                 'headline': page_data['title'],
                 'mainEntityOfPage': url,
                 'datePublished': str(page_data['date']),
+                **({'dateModified': str(page_data['updated'])} if page_data.get('updated') else {}),
                 'articleSection': page_data['collection'],
                 'publisher': {
                     '@type': 'Organization',
@@ -986,8 +1006,86 @@ class SiteBuilder:
         with open(self.output_dir / FILE_SEARCH, 'w', encoding='utf-8') as f:
             f.write(search_json)
 
+    def render_page_markdown(self, page_data: Dict) -> str:
+        """Render a section page as Markdown, expanding its includes with the .md templates
+
+        Args:
+            page_data: Page data dictionary
+
+        Returns:
+            Markdown document
+        """
+        body, include_directives = extract_include_directives(page_data['markdown'])
+        all_posts = self.get_all_posts()
+        context = {
+            'site': self.config,
+            'base_url': self.base_url,
+            'page': page_data,
+            'posts': self.posts,
+        }
+
+        for placeholder, directive in include_directives.items():
+            listed = all_posts[:self.config.get('post_limit', DEFAULT_POST_LIMIT)] if directive == 'posts' else all_posts
+            rendered = self.env.get_template(f'{directive}.md').render(all_posts=listed, **context)
+            body = body.replace(placeholder, rendered.strip())
+
+        if page_data['url'] == '/':
+            heading = f"# {self.config['meta']['title']}\n\n> {self.config['meta']['tagline']}"
+        else:
+            heading = f"# {page_data['title']}"
+        return '\n\n'.join(filter(None, (heading, body.strip()))) + '\n'
+
+    def sitemap_entries(self) -> List[Dict]:
+        """Every non-empty page and every post, as the sitemap lists them
+
+        Returns:
+            List of entries with title, url, md_url, section and lastmod
+        """
+        entries = [
+            {
+                'title': page['title'],
+                'url': page['url'].lstrip('/'),
+                'md_url': page['md_url'],
+                'section': '',
+                'lastmod': page['lastmod'],
+            }
+            for page in self.pages if not page['empty']
+        ]
+        entries += [
+            {
+                'title': post['title'],
+                'url': post['url'],
+                'md_url': post['md_url'],
+                'section': post['collection'],
+                'lastmod': str(post['updated'] or post['date']),
+            }
+            for post in self.get_all_posts()
+        ]
+        return entries
+
+    def render_sitemap_page(self, entries: List[Dict]) -> None:
+        """Render sitemap/ as a page in the site layout"""
+        page_data = {
+            'content': self.env.get_template(FILE_SITEMAP_HTML).render(entries=entries),
+            'markdown': '',
+            'title': 'Sitemap',
+            'description': f"Every page and post on {self.config['meta']['title']}, with its last modification date",
+            'date': '',
+            'updated': '',
+            'comments': False,
+            'mermaid': False,
+            'codepen': False,
+            'toc': False,
+            'banner': False,
+            'sidebar': False,
+            'url': 'sitemap/',
+            'md_url': FILE_SITEMAP_MD,
+            'include_directives': {},
+        }
+        self.render_page(page_data, 'sitemap')
+
     def generate_discovery_files(self) -> None:
-        """Generate sitemap, llms.txt, llms-full.txt and per-post Markdown sources"""
+        """Generate sitemap, llms.txt, llms-full.txt and Markdown versions of posts and pages"""
         context = {
             'site': self.config,
             'base_url': self.base_url,
@@ -995,13 +1093,21 @@ class SiteBuilder:
             'all_posts': self.get_all_posts(),
             'pages': self.pages,
         }
+        context['entries'] = self.sitemap_entries()
+        context['newest'] = max((entry['lastmod'] for entry in context['entries']), default='')
 
-        for name in (FILE_SITEMAP, FILE_LLMS, FILE_LLMS_FULL):
+        for name in (FILE_SITEMAP, FILE_SITEMAP_MD, FILE_LLMS, FILE_LLMS_FULL):
             with open(self.output_dir / name, 'w', encoding='utf-8') as f:
                 f.write(self.env.get_template(name).render(**context))
 
         for post in context['all_posts']:
             shutil.copy2(post['file_path'], self.output_dir / post['md_url'])
+
+        for page in self.pages:
+            with open(self.output_dir / page['md_url'], 'w', encoding='utf-8') as f:
+                f.write(self.render_page_markdown(page))
+
+        self.render_sitemap_page(context['entries'])
 
     def generate_css(self) -> None:
         """Generate CSS from template with font configurations"""
@@ -1084,7 +1190,7 @@ class SiteBuilder:
         """
         return [
             ("Cleaning output directory", self.clean_output_dir),
-            ("Collecting posts and pages", lambda: (self.collect_posts(), self.collect_pages())),
+            ("Collecting posts and pages", lambda: (self.collect_posts(), self.collect_pages(), self.annotate_pages())),
             ("Rendering posts", self.render_posts),
             ("Rendering pages", self.render_pages),
             ("Generating feed & search", lambda: (self.generate_feed(), self.generate_search_index())),
