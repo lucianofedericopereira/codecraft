@@ -33,6 +33,7 @@ Every release, as it ships.
 - Changed the archive filter buttons, the filter rules in the stylesheet and `codecraft.py new` to read `sections` from the config; adding a section is one line in the config and a folder of posts
 - Added a generated page for every section without a file in `themes/sections/`, and stopped building section pages that have no posts
 - Changed `rules` to match paths from the repository root (`content`, `themes/sections`) instead of anywhere in the file path, and merged the three identical per-section rules into one `content` rule
+- Fixed browsers pairing new pages with a cached old stylesheet or script after a deploy: `codeCraft.css` and `codeCraft.js` are linked with a version taken from their content, so a changed file gets a new URL
 - Fixed the canonical URL, `og:url` and JSON-LD `url` missing the slash between the site folder and the page path (`…/codecraftcode/post/`), which pointed every post at a 404
 - Fixed a `mermaid` code block shown as an example inside a `~~~` fence rendering as the text `MERMAID_PLACEHOLDER_0`
 - Fixed Mermaid diagrams containing `<` or `&`: the source is now HTML-escaped

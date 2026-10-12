@@ -6,6 +6,7 @@ Headless site builder: used directly by CI and imported by codecraft.py
 from __future__ import annotations
 
 import copy
+import hashlib
 import html
 import re
 import shutil
@@ -544,6 +545,13 @@ class SiteBuilder:
         self.posts = {name: [] for name in self.config['sections']}
         self.pages = []
 
+        # Content-hashed asset URLs, so a deploy never pairs new HTML with cached CSS or JS
+        self.css_content = self.render_css()
+        js_file = self.theme_dir / DIR_ASSETS / 'codeCraft.js'
+        js_bytes = js_file.read_bytes() if js_file.exists() else b''
+        self.css_url = f"./assets/{FILE_CODECRAFT_CSS}?v={hashlib.sha256(self.css_content.encode()).hexdigest()[:10]}"
+        self.js_url = f"./assets/codeCraft.js?v={hashlib.sha256(js_bytes).hexdigest()[:10]}"
+
     def _load_config(self, config_path: str) -> Dict:
         """Load configuration from YAML file
 
@@ -960,8 +968,8 @@ class SiteBuilder:
             'domain': f"https://{self.config['base']['url']}",
             'folder': "",
             'asset': "./assets",
-            'css': "./assets/codeCraft.css",
-            'js': "./assets/codeCraft.js",
+            'css': self.css_url,
+            'js': self.js_url,
             'logo': f"./assets/{logo_file}",
             'favicon': f"./assets/{favicon_file}",
             'asset_urls': self.asset_urls,
@@ -1127,8 +1135,12 @@ class SiteBuilder:
 
         self.render_sitemap_page(context['entries'])
 
-    def generate_css(self) -> None:
-        """Generate CSS from template with font configurations"""
+    def render_css(self) -> str:
+        """Render the CSS template with the configured fonts and sections
+
+        Returns:
+            CSS text
+        """
         assets_config = self.config.get('assets', {})
         fonts_config = assets_config.get('fonts', [])
 
@@ -1140,13 +1152,15 @@ class SiteBuilder:
             fonts.append(font_data)
 
         template = self.env.get_template(FILE_CSS_TEMPLATE)
-        css_content = template.render(fonts=fonts, sections=self.config['sections'])
+        return template.render(fonts=fonts, sections=self.config['sections'])
 
+    def generate_css(self) -> None:
+        """Write the rendered CSS into the build"""
         assets_dst = self.output_dir / DIR_ASSETS
         assets_dst.mkdir(parents=True, exist_ok=True)
 
         with open(assets_dst / FILE_CODECRAFT_CSS, 'w', encoding='utf-8') as f:
-            f.write(css_content)
+            f.write(self.css_content)
 
     def clean_output_dir(self) -> None:
         """Remove and recreate the output directory"""
