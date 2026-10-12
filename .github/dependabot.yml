@@ -24,6 +24,8 @@ updates:
           - "python-frontmatter"
           - "MarkupSafe"
           - "Pygments"
+          - "tqdm"
+          - "minify-html"
 
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"

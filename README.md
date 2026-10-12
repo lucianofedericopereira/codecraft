@@ -21,7 +21,10 @@
 - **Fast Builds** — Efficient markdown processing with Pygments syntax highlighting
 - **Live Preview** — Built-in development server with auto-reload
 - **GitHub Actions** — Automatic deployment to GitHub Pages
-- **RSS Feed** — Auto-generated feed for subscribers
+- **RSS Feed** — Auto-generated feed for subscribers, with per-entry descriptions
+- **SEO Metadata** — Meta descriptions, Open Graph article tags, schema.org `BlogPosting` JSON-LD, canonical URLs and `sitemap.xml`
+- **LLM Discoverability** — `llms.txt` index, `llms-full.txt` full text, and every entry served as raw Markdown at `entry.md`
+- **Minified HTML** — Output minified with minify-html (toggle with `minify` in config)
 - **Client-side Search** — Powered by Lunr.js with pre-built index
 - **Multi-language Support** — Date formatting for English, Spanish, and Italian
 
@@ -51,8 +54,9 @@
 
 ```
 codecraft/
-├── codecraft.py                    # Unified CLI tool (build, serve, watch, new)
-├── publish.py                 # Core site builder class
+├── codecraft.py               # Terminal CLI (build, serve, watch, new) on top of publish.py
+├── publish.py                 # Headless site builder (used by CI)
+├── CHANGELOG.md               # Release notes
 ├── requirements.txt           # Python dependencies
 │
 ├── content/                   # Markdown blog posts
@@ -68,7 +72,10 @@ codecraft/
 │   │   ├── category.html      # Category pages
 │   │   ├── archive.html       # Archive page
 │   │   ├── feed.xml           # RSS template
-│   │   └── search.json        # Search index template
+│   │   ├── search.json        # Search index template
+│   │   ├── sitemap.xml        # Sitemap template
+│   │   ├── llms.txt           # LLM index template
+│   │   └── llms-full.txt      # LLM full-text template
 │   ├── sections/              # Special pages (home, archive, etc.)
 │   └── assets/                # Static files (CSS, JS, fonts, images)
 │
@@ -158,6 +165,7 @@ git push origin main
 ---
 title: "Your Post Title"           # Required
 date: 2025-12-24                   # Required (YYYY-MM-DD)
+description: "One-line summary"    # Meta/OG/feed/llms.txt description (default: first paragraph)
 comments: true                     # Enable GitHub-based comments
 toc: true                          # Auto-generate table of contents
 mermaid: false                     # Enable Mermaid diagram support
@@ -245,6 +253,9 @@ links:
   LinkedIn: https://linkedin.com/in/yourprofile
   GitHub: https://github.com/yourusername
 
+# Minify generated HTML (default: true)
+minify: true
+
 # Post categories
 sections:
   - design
@@ -273,7 +284,7 @@ rules:
 
 # External scripts
 scripts:
-  mermaid: 11.4.1
+  mermaid: 12.1.0
   lunr: 2.3.9
 
 # Comments (Utterances)
@@ -308,9 +319,8 @@ python codecraft.py serve
 # Use custom port
 python codecraft.py serve -p 3000
 
-# The server automatically:
-# - Removes <base> tags for local development
-# - Fixes asset paths (./assets/ → /assets/)
+# The server serves the same build CI deploys, rewriting on the fly:
+# - Points <base> and absolute site URLs at http://localhost:PORT/
 # - Disables console suppression scripts
 ```
 
@@ -407,27 +417,24 @@ python codecraft.py build
 
 ### Core Components
 
+`publish.py` is the headless builder: CI runs `python publish.py` directly. `codecraft.py` imports its `SiteBuilder` and only adds terminal concerns (colored warnings, progress bar, dev server, watcher, post scaffolding), so both produce identical output.
+
 ```python
 # publish.py — SiteBuilder class
 class SiteBuilder:
-    """Main site builder with methods for:
-    - Loading configuration
-    - Parsing markdown with frontmatter
-    - Processing Jinja2 templates
-    - Generating RSS feed and search index
-    - Copying static assets
-    """
-
-    def build(self) -> None:
-        """Complete build pipeline:
+    def steps(self) -> list:
+        """Ordered (label, action) build pipeline:
         1. Clean output directory
-        2. Collect posts from content/
-        3. Collect pages from themes/sections/
-        4. Render all pages with templates
+        2. Collect posts (content/) and pages (themes/sections/)
+        3. Render posts
+        4. Render pages (minified when `minify` is on)
         5. Generate feed.xml and search.json
-        6. Copy static assets
-        7. Generate CSS from template
+        6. Write sitemap.xml, llms.txt, llms-full.txt and per-entry .md sources
+        7. Copy static assets and generate CSS
         """
+
+    def warn(self, message: str) -> None:
+        """Non-fatal problems: stderr headless, colored in the CLI"""
 ```
 
 ### Markdown Processing Pipeline
@@ -743,6 +750,7 @@ Built with these excellent tools:
 - **[Pygments](https://pygments.org/)** — Syntax highlighting
 - **[PyYAML](https://pyyaml.org/)** — YAML parser
 - **[python-frontmatter](https://github.com/eyeseast/python-frontmatter)** — Frontmatter parser
+- **[minify-html](https://github.com/wilsonzlin/minify-html)** — HTML minifier
 - **[Lunr.js](https://lunrjs.com/)** — Client-side search
 - **[Mermaid](https://mermaid.js.org/)** — Diagram rendering
 - **[Utterances](https://utteranc.es/)** — GitHub-based comments

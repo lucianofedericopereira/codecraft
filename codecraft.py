@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
 CodeCraft Static Site Generator
-A Python-based static site generator using Jinja2 templates and Markdown
+Terminal CLI on top of publish.py: build, serve, watch, clean, new
 """
 from __future__ import annotations
 
 import argparse
-import copy
 import io
 import os
 import re
@@ -14,126 +13,30 @@ import shutil
 import subprocess
 import sys
 import urllib.parse
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
 
-import frontmatter
-import yaml
-from jinja2 import Environment, FileSystemLoader
-from markdown import markdown
-from pygments import highlight
-from pygments.formatters import HtmlFormatter
-from pygments.lexers import get_lexer_by_name
 from tqdm import tqdm
+
+from publish import DEFAULT_CONFIG, DIR_BUILD, DIR_CONTENT, DIR_THEMES, SiteBuilder
+from publish import MESSAGES as BUILD_MESSAGES
 
 # ============================================================================
 # CONSTANTS - Configuration and Magic Values
 # ============================================================================
 
-# Internationalization
-MONTHS = {
-    "en": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-    "es": ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"],
-    "it": ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
-}
-
 # Directory names
-DIR_ASSETS = 'assets'
-DIR_BUILD = 'build'
-DIR_SECTIONS = 'sections'
-DIR_CONTENT = 'content'
 DIR_PYCACHE = '__pycache__'
-DIR_TEMPLATES = 'templates'
-DIR_THEMES = 'themes'
-
-# File names
-FILE_CONFIG_PATH = 'themes/config.yaml'
-FILE_CSS_TEMPLATE = 'codeCraft.css'
-FILE_CODECRAFT_CSS = 'codeCraft.css'
-FILE_FEED = 'feed.xml'
-FILE_SEARCH = 'search.json'
 
 # File extensions
 EXT_MD = '.md'
 EXT_HTML = '.html'
-EXT_JS = '.js'
-
-# Markdown configuration
-MD_EXTENSIONS = ['extra', 'toc']
-
-# CSS classes
-CSS_CLASS_HIGHLIGHT = 'highlight'
-CSS_CLASS_HIGHLIGHTER_ROUGE = 'highlighter-rouge'
-CSS_CLASS_LANGUAGE_PLAINTEXT = 'language-plaintext highlighter-rouge'
-CSS_CLASS_LANGUAGE_MERMAID = 'language-mermaid'
 
 # Server defaults
 DEFAULT_SERVER_PORT = 8000
 
 # Regex patterns
-PATTERN_MERMAID_BLOCK = r'```mermaid\n(.*?)```'
-PATTERN_CODE_BLOCK = r'```(\w+)?\n(.*?)```'
-PATTERN_EXAMPLE_SHORTCODE = r'\[example:(\d+)\]'
-PATTERN_BASE_TAG = rb'<base\s+href="[^"]*"[^>]*>\s*'
 PATTERN_CONSOLE_SUPPRESS = rb'// Aggressively suppress all console.*?\}\)\(\);\s*'
-
-# Include directive placeholders
-PLACEHOLDER_POSTS = 'INCLUDE_POSTS_PLACEHOLDER'
-PLACEHOLDER_CATEGORY = 'INCLUDE_CATEGORY_PLACEHOLDER'
-PLACEHOLDER_ARCHIVE = 'INCLUDE_ARCHIVE_PLACEHOLDER'
-
-# Template names
-TEMPLATE_MAIN = 'codeCraft.html'
-TEMPLATE_POSTS = 'posts.html'
-TEMPLATE_CATEGORY = 'category.html'
-TEMPLATE_ARCHIVE = 'archive.html'
-
-# Post limits
-DEFAULT_POST_LIMIT = 10
-FEED_POST_LIMIT = 10
-
-# Font weight mappings
-FONT_WEIGHT_MAP = {
-    'thin': '100',
-    'extralight': '200',
-    'light': '300',
-    'regular': '400',
-    'medium': '500',
-    'semibold': '600',
-    'bold': '700',
-    'extrabold': '800',
-    'black': '900'
-}
-
-# Default configuration
-DEFAULT_CONFIG = {
-    "post_limit": DEFAULT_POST_LIMIT,
-    "search_enabled": False,
-    "base": {
-        "url": "localhost",
-        "folder": ""
-    },
-    "meta": {
-        "title": "My Blog",
-        "tagline": "A simple blog",
-        "author": "Anonymous",
-        "repository": "",
-        "license": "",
-        "locale": "en"
-    },
-    "assets": {
-        "images": {
-            "logo": "codeCraft.ico",
-            "favicon": "codeCraft.ico"
-        },
-        "fonts": []
-    },
-    "links": {},
-    "sections": ["design", "code", "projects"],
-    "rules": [],
-    "scripts": {},
-}
 
 # Post template
 POST_TEMPLATE = """---
@@ -154,13 +57,8 @@ Write your introduction here...
 MESSAGES = {
     "error": {
         "category": "Error: Category must be one of: {}",
-        "sections_not_found": "Sections directory not found: {}",
-        "config_not_found": "Config file not found: {}",
         "editor_not_found": "Editor '{}' not found",
         "file_exists": "Warning: File {} already exists",
-        "invalid_yaml": "Invalid YAML format in {}: {}",
-        "parsing_markdown": "Error parsing markdown in {}: {}",
-        "reading_file": "Error reading {}: {}",
     },
     "examples": [
         "%(prog)s build Build the site",
@@ -194,17 +92,6 @@ MESSAGES = {
     },
     "info": {
         "aborted": "Aborted.",
-        "build_complete": "Build complete! Output in build/",
-        "building_site": "Building site...",
-        "build_stats": "Posts: {}, Pages: {}",
-        "build_steps": [
-            "Cleaning output directory ",
-            "Collecting posts and pages",
-            "Rendering posts           ",
-            "Rendering pages           ",
-            "Generating feed & search  ",
-            "Copying static assets     ",
-        ],
         "change_detected": "Change detected: {}",
         "clean_complete": "Clean complete",
         "cleaning": "Cleaning build artifacts...",
@@ -232,7 +119,6 @@ MESSAGES = {
         "step_deploy": "4. Deploy: git add {} && git commit -m 'Add: {}' && git push",
         "step_preview": "3. Preview: python codecraft.py serve",
         "ubuntu_install": "Ubuntu/Debian: sudo apt install inotify-tools",
-        "using_default_config": "Using default configuration",
         "watch_stopped": "Stopped watching",
         "watching": "Watching for changes...",
     },
@@ -252,46 +138,6 @@ INFO = " \033[94mℹ\033[0m"
 # UTILITY FUNCTIONS
 # ============================================================================
 
-def apply_defaults(data: Optional[Dict], defaults: Dict) -> Dict:
-    """Deep merge defaults into data dictionary
-
-    Args:
-        data: Target dictionary
-        defaults: Source dictionary with default values
-
-    Returns:
-        Merged dictionary with defaults applied
-    """
-    def deep_merge(target: Dict, source: Dict) -> Dict:
-        for key, value in source.items():
-            if isinstance(value, dict):
-                node = target.setdefault(key, {})
-                deep_merge(node, value)
-            else:
-                target.setdefault(key, value)
-        return target
-
-    merged_data = copy.deepcopy(data) if data else {}
-    return deep_merge(merged_data, defaults)
-
-
-def strip_all_whitespace(value: str) -> str:
-    """Remove all whitespace from a string"""
-    return re.sub(r'\s+', '', value)
-
-
-def normalize_url_path(path: str) -> str:
-    """Normalize URL path by stripping leading/trailing slashes
-
-    Args:
-        path: URL path to normalize
-
-    Returns:
-        Normalized path without leading/trailing slashes
-    """
-    return path.strip('/')
-
-
 def slugify(text: str) -> str:
     """Convert text to URL-friendly slug
 
@@ -307,766 +153,34 @@ def slugify(text: str) -> str:
 
 
 # ============================================================================
-# DATE FORMATTING FUNCTIONS
+# TERMINAL BUILDER
 # ============================================================================
 
-def _month_abbr(month_index: int, lang: str) -> str:
-    """Get abbreviated month name for a zero-based month index"""
-    return MONTHS.get(lang, MONTHS['en'])[month_index]
-
-
-def format_month_year(date_str: str, lang: str = "en") -> str:
-    """Format YYYY-MM date string to abbreviated month + year
-
-    Args:
-        date_str: Date string in YYYY-MM format
-        lang: Language code (en, es, it)
-
-    Returns:
-        Formatted string like "Jan 2024" or original string if parsing fails
-    """
-    if not date_str:
-        return ""
-    try:
-        year, month = str(date_str).split("-")[:2]
-        return f"{_month_abbr(int(month) - 1, lang)} {year}"
-    except Exception:
-        return str(date_str)
-
-
-def format_date_archive(date_str: str, lang: str = "en") -> str:
-    """Format YYYY-MM-DD date string to 3-letter month + padded day
-
-    Args:
-        date_str: Date string in YYYY-MM-DD format
-        lang: Language code (en, es, it)
-
-    Returns:
-        Formatted string like "Nov 17" or original string if parsing fails
-    """
-    if not date_str:
-        return ""
-    try:
-        year, month, day = str(date_str).split("-")[:3]
-        return f"{_month_abbr(int(month) - 1, lang)} {int(day):02d}"
-    except Exception:
-        return str(date_str)
-
-
-def extract_year(date_str: str) -> str:
-    """Extract year from YYYY-MM-DD date string
-
-    Args:
-        date_str: Date string in YYYY-MM-DD format
-
-    Returns:
-        Year as string or original string if parsing fails
-    """
-    if not date_str:
-        return ""
-    return str(date_str).split("-")[0]
-
-
-def format_date_full(date_str: str, lang: str = "en") -> str:
-    """Format YYYY-MM-DD date string to 3-letter month + padded day + year
-
-    Args:
-        date_str: Date string in YYYY-MM-DD format
-        lang: Language code (en, es, it)
-
-    Returns:
-        Formatted string like "Nov 17, 2025" or original string if parsing fails
-    """
-    if not date_str:
-        return ""
-    try:
-        year, month, day = str(date_str).split("-")[:3]
-        return f"{_month_abbr(int(month) - 1, lang)} {int(day):02d}, {year}"
-    except Exception:
-        return str(date_str)
-
-
-def format_date_jinja(value: Any, format: str = '%B %d, %Y') -> str:
-    """Format date for Jinja2 templates
-
-    Args:
-        value: Date value (string or datetime object)
-        format: strftime format string
-
-    Returns:
-        Formatted date string
-    """
-    if isinstance(value, str):
-        try:
-            value = datetime.strptime(value, '%Y-%m-%d')
-        except Exception:
-            return value
-    if isinstance(value, (datetime, date)):
-        return value.strftime(format)
-    return value
-
-
-# ============================================================================
-# MARKDOWN PROCESSING
-# ============================================================================
-
-def extract_include_directives(content: str) -> Tuple[str, Dict[str, str]]:
-    """Extract Jinja include directives and replace with placeholders
-
-    Args:
-        content: Markdown content with include directives
-
-    Returns:
-        Tuple of (modified content, directives dict)
-    """
-    include_directives = {}
-
-    includes = [
-        ('posts.html', PLACEHOLDER_POSTS, 'posts'),
-        ('category.html', PLACEHOLDER_CATEGORY, 'category'),
-        ('archive.html', PLACEHOLDER_ARCHIVE, 'archive'),
-    ]
-
-    for template_name, placeholder, directive in includes:
-        variants = (f'{{%- include {template_name} -%}}', f'{{% include {template_name} %}}')
-        if any(variant in content for variant in variants):
-            include_directives[placeholder] = directive
-            for variant in variants:
-                content = content.replace(variant, placeholder)
-
-    return content, include_directives
-
-
-def extract_example_shortcodes(content: str, directives: Dict[str, str]) -> str:
-    """Replace [example:N] shortcodes with placeholders
-
-    Args:
-        content: Markdown content
-        directives: Dictionary to store directive mappings
-
-    Returns:
-        Content with placeholders
-    """
-    def replace_example(match):
-        example_id = match.group(1)
-        placeholder = f'EXAMPLE_PLACEHOLDER_{example_id}'
-        directives[placeholder] = f'example:{example_id}'
-        return f'\n\n{placeholder}\n\n'
-
-    return re.sub(PATTERN_EXAMPLE_SHORTCODE, replace_example, content)
-
-
-def extract_mermaid_blocks(content: str) -> Tuple[str, List[str]]:
-    """Extract mermaid blocks and replace with placeholders
-
-    Args:
-        content: Markdown content
-
-    Returns:
-        Tuple of (content with placeholders, list of mermaid blocks)
-    """
-    mermaid_blocks = []
-
-    def save_mermaid(match):
-        mermaid_blocks.append(match.group(1))
-        return f'\n\nMERMAID_PLACEHOLDER_{len(mermaid_blocks)-1}\n\n'
-
-    content = re.sub(PATTERN_MERMAID_BLOCK, save_mermaid, content, flags=re.DOTALL)
-    return content, mermaid_blocks
-
-
-def restore_mermaid_blocks(content_html: str, mermaid_blocks: List[str]) -> str:
-    """Restore mermaid blocks with proper language class
-
-    Args:
-        content_html: HTML content with placeholders
-        mermaid_blocks: List of mermaid block contents
-
-    Returns:
-        HTML with restored mermaid blocks
-    """
-    for i, mermaid_content in enumerate(mermaid_blocks):
-        content_html = content_html.replace(
-            f'<p>MERMAID_PLACEHOLDER_{i}</p>',
-            f'<pre><code class="{CSS_CLASS_LANGUAGE_MERMAID}">{mermaid_content}</code></pre>'
-        )
-    return content_html
-
-
-def highlight_code_blocks(content: str) -> str:
-    """Process fenced code blocks with Pygments syntax highlighting
-
-    Args:
-        content: Markdown content with fenced code blocks
-
-    Returns:
-        Content with highlighted code blocks
-    """
-    def highlight_match(match):
-        lang = match.group(1) or 'text'
-        code = match.group(2)
-        try:
-            lexer = get_lexer_by_name(lang, stripall=False)
-            formatter = HtmlFormatter(cssclass=CSS_CLASS_HIGHLIGHT, noclasses=False)
-            highlighted = highlight(code, lexer, formatter)
-            return f'<div class="{CSS_CLASS_HIGHLIGHTER_ROUGE}">{highlighted}</div>'
-        except Exception:
-            return f'<div class="{CSS_CLASS_HIGHLIGHTER_ROUGE}"><div class="{CSS_CLASS_HIGHLIGHT}"><pre><code class="language-{lang}">{code}</code></pre></div></div>'
-
-    return re.sub(PATTERN_CODE_BLOCK, highlight_match, content, flags=re.DOTALL)
-
-
-def add_inline_code_classes(content_html: str) -> str:
-    """Add CSS classes to inline code elements
-
-    Args:
-        content_html: HTML content
-
-    Returns:
-        HTML with classes added to inline code
-    """
-    return re.sub(
-        r'<code>(?!</code>)',
-        f'<code class="{CSS_CLASS_LANGUAGE_PLAINTEXT}">',
-        content_html
-    )
-
-
-def process_markdown_content(content: str) -> Tuple[str, Dict[str, str]]:
-    """Process markdown content with all transformations
-
-    Args:
-        content: Raw markdown content
-
-    Returns:
-        Tuple of (processed HTML, include directives dict)
-    """
-    # Extract include directives
-    content, include_directives = extract_include_directives(content)
-
-    # Extract example shortcodes
-    content = extract_example_shortcodes(content, include_directives)
-
-    # Extract mermaid blocks
-    content, mermaid_blocks = extract_mermaid_blocks(content)
-
-    # Highlight code blocks
-    content = highlight_code_blocks(content)
-
-    # Convert markdown to HTML
-    content_html = markdown(content, extensions=MD_EXTENSIONS, extension_configs={})
-
-    # Add classes to inline code
-    content_html = add_inline_code_classes(content_html)
-
-    # Restore mermaid blocks
-    content_html = restore_mermaid_blocks(content_html, mermaid_blocks)
-
-    return content_html, include_directives
-
-
-# ============================================================================
-# SITE BUILDER
-# ============================================================================
-
-class SiteBuilder:
-    """Main site builder class that handles all build operations"""
-
-    def __init__(self, config_path: str = FILE_CONFIG_PATH):
-        """Initialize the site builder
+class TerminalSiteBuilder(SiteBuilder):
+    """SiteBuilder with colored warnings and a progress bar"""
+
+    def warn(self, message: str) -> None:
+        """Report a non-fatal problem
 
         Args:
-            config_path: Path to config file
+            message: Warning text
         """
-        self.root_dir = Path(__file__).parent
-        self.config = self._load_config(config_path)
-        self.output_dir = self.root_dir / DIR_BUILD
-        self.theme_dir = self.root_dir / DIR_THEMES
-        self.templates_dir = self.theme_dir / DIR_TEMPLATES
-
-        # Set base URL
-        self.base_url = self._build_base_url()
-
-        # Initialize Jinja2 environment
-        self.env = self._create_jinja_environment()
-
-        # Resolve asset URLs
-        self.asset_urls = self._get_asset_urls()
-
-        # Storage for posts and pages
-        sections = self.config.get('sections', [])
-        self.posts = {name: [] for name in sections} if sections else {'design': [], 'code': [], 'projects': []}
-        self.pages = []
-
-    def _load_config(self, config_path: str) -> Dict:
-        """Load configuration from YAML file
-
-        Args:
-            config_path: Path to config file
-
-        Returns:
-            Configuration dictionary
-        """
-        config_file = self.root_dir / config_path
-        config = {}
-
-        if not config_file.exists():
-            print(f'{CROSS} {MESSAGES["error"]["config_not_found"].format(config_path)}')
-            print(f'{INFO}  {MESSAGES["info"]["using_default_config"]}')
-        else:
-            try:
-                with open(config_file, 'r', encoding='utf-8') as f:
-                    config = yaml.safe_load(f) or {}
-            except yaml.YAMLError as e:
-                print(f'{CROSS} {MESSAGES["error"]["invalid_yaml"].format(config_path, e)}')
-                print(f'{INFO}  {MESSAGES["info"]["using_default_config"]}')
-                config = {}
-            except Exception as e:
-                print(f'{CROSS} {MESSAGES["error"]["reading_file"].format(config_path, e)}')
-                print(f'{INFO}  {MESSAGES["info"]["using_default_config"]}')
-                config = {}
-
-        return apply_defaults(config, DEFAULT_CONFIG)
-
-    def _build_base_url(self) -> str:
-        """Build the base URL from config
-
-        Returns:
-            Base URL string
-        """
-        folder = self.config.get('base', {}).get('folder', '')
-        base_domain = self.config['base']['url']
-
-        if folder:
-            return f"https://{base_domain}/{folder}"
-        else:
-            return f"https://{base_domain}"
-
-    def _create_jinja_environment(self) -> Environment:
-        """Create and configure Jinja2 environment
-
-        Returns:
-            Configured Jinja2 Environment
-        """
-        env = Environment(
-            loader=FileSystemLoader(str(self.templates_dir)),
-            autoescape=True
-        )
-
-        # Add custom filters
-        env.filters['date_format'] = format_date_jinja
-        env.filters['month_year'] = format_month_year
-        env.filters['date_archive'] = format_date_archive
-        env.filters['date_full'] = format_date_full
-        env.filters['year'] = extract_year
-        env.filters['strip_whitespace'] = strip_all_whitespace
-        env.filters['split'] = lambda s, sep: s.split(sep) if s else []
-
-        return env
-
-    def _get_asset_urls(self) -> Dict[str, str]:
-        """Generate CDN URLs from script version numbers in config
-
-        Returns:
-            Dictionary with CDN URLs for lunr and mermaid
-        """
-        scripts = self.config.get('scripts', {})
-
-        return {
-            'lunr': f"https://cdn.jsdelivr.net/npm/lunr@{scripts.get('lunr', '2.3.9')}/+esm",
-            'mermaid': f"https://cdn.jsdelivr.net/npm/mermaid@{scripts.get('mermaid', '11.4.1')}/+esm"
-        }
-
-    def _get_path_defaults(self, file_path: Path) -> Dict[str, bool]:
-        """Get default frontmatter values for a file path based on config rules
-
-        Args:
-            file_path: Path to the file
-
-        Returns:
-            Dictionary of default values
-        """
-        rules_config = self.config.get('rules', [])
-        file_path_str = str(file_path)
-
-        defaults = {
-            'toc': False,
-            'comments': False,
-            'mermaid': False,
-            'codepen': False,
-            'banner': False
-        }
-
-        for rule in rules_config:
-            scope = rule.get('scope', {})
-            scope_path = scope.get('path', '')
-
-            if scope_path and scope_path in file_path_str:
-                if 'features' in rule:
-                    defaults.update(rule['features'])
-
-        return defaults
-
-    def parse_markdown_file(self, file_path: Path, is_post: bool = True) -> Optional[Dict]:
-        """Parse a markdown file with frontmatter
-
-        Args:
-            file_path: Path to markdown file
-            is_post: True for blog posts, False for pages
-
-        Returns:
-            Dictionary with post data or None on error
-        """
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                post = frontmatter.load(f)
-        except Exception as e:
-            print(f'{CROSS} {MESSAGES["error"]["reading_file"].format(file_path, e)}')
-            return None
-
-        path_defaults = self._get_path_defaults(file_path)
-
-        try:
-            content_html, include_directives = process_markdown_content(post.content)
-        except Exception as e:
-            print(f'{CROSS} {MESSAGES["error"]["parsing_markdown"].format(file_path, e)}')
-            return None
-
-        return {
-            'content': content_html,
-            'title': post.get('title', ''),
-            'date': post.get('date', ''),
-            'comments': post.get('comments', path_defaults.get('comments', False)),
-            'mermaid': post.get('mermaid', path_defaults.get('mermaid', False)),
-            'codepen': post.get('codepen', path_defaults.get('codepen', False)),
-            'toc': post.get('toc', path_defaults.get('toc', is_post)),
-            'banner': post.get('banner', path_defaults.get('banner', False)),
-            'sidebar': post.get('sidebar', True),
-            'url': '',
-            'file_path': file_path,
-            'include_directives': include_directives
-        }
-
-    def collect_posts(self) -> None:
-        """Collect all posts from section directories"""
-        content_dir = self.root_dir / DIR_CONTENT
-        sections = self.config.get('sections', DEFAULT_CONFIG['sections'])
-
-        for collection_name in sections:
-            collection_dir = content_dir / collection_name
-
-            if not collection_dir.exists():
-                continue
-
-            for md_file in collection_dir.glob(f'*{EXT_MD}'):
-                post_data = self.parse_markdown_file(md_file)
-
-                if post_data is None:
-                    continue
-
-                post_slug = md_file.stem
-                post_data['url'] = f"/{collection_name}/{post_slug}/"
-                post_data['collection'] = collection_name
-
-                self.posts[collection_name].append(post_data)
-
-        # Sort posts by date (newest first)
-        for collection in self.posts:
-            self.posts[collection].sort(
-                key=lambda x: x.get('date', ''),
-                reverse=True
-            )
-
-    def collect_pages(self) -> None:
-        """Collect all pages from sections directory"""
-        sections_dir = self.theme_dir / DIR_SECTIONS
-
-        if not sections_dir.exists():
-            print(f'{CROSS} {MESSAGES["error"]["sections_not_found"].format(sections_dir)}')
-            return
-
-        for page_file in sections_dir.glob(f'*{EXT_MD}'):
-            page_data = self.parse_markdown_file(page_file, is_post=False)
-
-            if page_data is None:
-                continue
-
-            if page_file.stem == 'home':
-                page_data['url'] = '/'
-            else:
-                page_data['url'] = f"/{page_file.stem}/"
-                page_data['section'] = page_file.stem
-
-            self.pages.append(page_data)
-
-    def get_all_posts(self) -> List[Dict]:
-        """Get all posts combined from all sections
-
-        Returns:
-            List of all posts sorted by date
-        """
-        all_posts = [post for collection in self.posts.values() for post in collection]
-        all_posts.sort(key=lambda x: x.get('date', ''), reverse=True)
-        return all_posts
-
-    def _process_include_directives(self, page_data: Dict) -> str:
-        """Process include directives in page content
-
-        Args:
-            page_data: Page data dictionary
-
-        Returns:
-            Processed content with directives replaced
-        """
-        content = page_data['content']
-        include_directives = page_data.get('include_directives', {})
-
-        for placeholder, directive_type in include_directives.items():
-            if directive_type == 'posts':
-                rendered = self._render_posts_include()
-            elif directive_type == 'category':
-                rendered = self._render_category_include(page_data)
-            elif directive_type == 'archive':
-                rendered = self._render_archive_include()
-            elif directive_type.startswith('example:'):
-                example_id = directive_type.split(':')[1]
-                rendered = f'<div class="example-viewer" data-example-id="{example_id}"></div>'
-            else:
-                continue
-
-            content = content.replace(f'<p>{placeholder}</p>', rendered)
-            content = content.replace(placeholder, rendered)
-
-        return content
-
-    def _render_posts_include(self) -> str:
-        """Render the posts include template
-
-        Returns:
-            Rendered HTML string
-        """
-        posts_template = self.env.get_template(TEMPLATE_POSTS)
-        return posts_template.render(
-            site=self.config,
-            posts=self.posts,
-            all_posts=self.get_all_posts()[:self.config.get('post_limit', DEFAULT_POST_LIMIT)]
-        )
-
-    def _render_category_include(self, page_data: Dict) -> str:
-        """Render the category include template
-
-        Args:
-            page_data: Page data dictionary
-
-        Returns:
-            Rendered HTML string
-        """
-        section_name = page_data.get('section')
-        if not section_name:
-            section_name = normalize_url_path(page_data['url']).split('/')[-1]
-
-        page_data['section'] = section_name
-        category_template = self.env.get_template(TEMPLATE_CATEGORY)
-        return category_template.render(
-            site=self.config,
-            page=page_data,
-            posts=self.posts
-        )
-
-    def _render_archive_include(self) -> str:
-        """Render the archive include template
-
-        Returns:
-            Rendered HTML string
-        """
-        archive_template = self.env.get_template(TEMPLATE_ARCHIVE)
-        return archive_template.render(
-            site=self.config,
-            posts=self.posts,
-            all_posts=self.get_all_posts()
-        )
-
-    def _build_template_context(self, page_data: Dict) -> Dict:
-        """Build template rendering context
-
-        Args:
-            page_data: Page data dictionary
-
-        Returns:
-            Context dictionary for template rendering
-        """
-        assets_config = self.config.get('assets', {})
-        images_config = assets_config.get('images', {})
-        logo_file = images_config.get('logo', 'codeCraft.ico')
-        favicon_file = images_config.get('favicon', 'codeCraft.ico')
-
-        return {
-            'page': page_data,
-            'site': self.config,
-            'posts': self.posts,
-            'pages': self.pages,
-            'all_posts': self.get_all_posts()[:self.config.get('post_limit', DEFAULT_POST_LIMIT)],
-            'use_base_tag': True,
-            'base_url': self.base_url,
-            'domain': f"https://{self.config['base']['url']}",
-            'folder': "",
-            'asset': "/assets",
-            'css': f"/assets/{FILE_CODECRAFT_CSS}",
-            'js': "/assets/codeCraft.js",
-            'logo': f"/assets/{logo_file}",
-            'favicon': f"/assets/{favicon_file}",
-            'asset_urls': self.asset_urls,
-            'now': datetime.now()
-        }
-
-    def render_page(self, page_data: Dict, output_path: str) -> None:
-        """Render a single page using template
-
-        Args:
-            page_data: Page data dictionary
-            output_path: Output path relative to build directory
-        """
-        template = self.env.get_template(TEMPLATE_MAIN)
-
-        # Process include directives
-        page_data['content'] = self._process_include_directives(page_data)
-
-        # Build context and render
-        context = self._build_template_context(page_data)
-        html = template.render(**context)
-
-        # Write output
-        output_file = self.output_dir / output_path / 'index.html'
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write(html)
-
-    def generate_feed(self) -> None:
-        """Generate RSS feed"""
-        template = self.env.get_template(FILE_FEED)
-
-        context = {
-            'site': self.config,
-            'posts': self.get_all_posts()[:FEED_POST_LIMIT],
-            'now': datetime.now()
-        }
-
-        feed_xml = template.render(**context)
-
-        with open(self.output_dir / FILE_FEED, 'w', encoding='utf-8') as f:
-            f.write(feed_xml)
-
-    def generate_search_index(self) -> None:
-        """Generate search.json for client-side search"""
-        template = self.env.get_template(FILE_SEARCH)
-
-        context = {
-            'site': self.config,
-            'posts': self.get_all_posts()
-        }
-
-        search_json = template.render(**context)
-
-        with open(self.output_dir / FILE_SEARCH, 'w', encoding='utf-8') as f:
-            f.write(search_json)
-
-    def generate_css(self) -> None:
-        """Generate CSS from template with font configurations"""
-        assets_config = self.config.get('assets', {})
-        fonts_config = assets_config.get('fonts', [])
-
-        fonts = []
-        for font in fonts_config:
-            font_data = font.copy()
-            weight_str = font.get('weight', 'Regular').lower()
-            font_data['weight_num'] = FONT_WEIGHT_MAP.get(weight_str, '400')
-            fonts.append(font_data)
-
-        template = self.env.get_template(FILE_CSS_TEMPLATE)
-        css_content = template.render(fonts=fonts)
-
-        assets_dst = self.output_dir / DIR_ASSETS
-        assets_dst.mkdir(parents=True, exist_ok=True)
-
-        with open(assets_dst / FILE_CODECRAFT_CSS, 'w', encoding='utf-8') as f:
-            f.write(css_content)
-
-    def clean_output_dir(self) -> None:
-        """Remove and recreate the output directory"""
-        if self.output_dir.exists():
-            shutil.rmtree(self.output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-
-    def copy_static_files(self) -> None:
-        """Copy static assets to output directory"""
-        # Copy theme assets (excluding CSS template)
-        assets_src = self.theme_dir / DIR_ASSETS
-        if assets_src.exists():
-            assets_dst = self.output_dir / DIR_ASSETS
-            assets_dst.mkdir(parents=True, exist_ok=True)
-
-            for item in assets_src.iterdir():
-                if item.name == FILE_CODECRAFT_CSS:
-                    continue
-                if item.is_file():
-                    shutil.copy2(item, assets_dst / item.name)
-                elif item.is_dir():
-                    shutil.copytree(item, assets_dst / item.name, dirs_exist_ok=True)
-
-        # Copy examples directory if it exists
-        examples_src = self.root_dir / 'examples'
-        if examples_src.exists():
-            examples_dst = self.output_dir / 'examples'
-            if examples_dst.exists():
-                shutil.rmtree(examples_dst)
-            shutil.copytree(examples_src, examples_dst)
-
-        # Generate CSS from template
-        self.generate_css()
+        print(f'{CROSS} {message}')
 
     def build(self) -> None:
         """Build the entire site"""
-        steps = MESSAGES['info']["build_steps"]
-        step = -1
-
-        def progress_step():
-            nonlocal step
-            step += 1
-            if step < len(steps):
-                padded = steps[step][:25].ljust(25)
-                symbol = CHECK if step == len(steps) - 1 else ARROW
-                progress.set_description_str(f"{symbol} {step+1}. {padded}")
-                progress.update(1)
+        steps = self.steps()
 
         with tqdm(total=len(steps), desc="Building site", unit="step", ncols=80,
                   bar_format="{l_bar}{bar} {n_fmt}/{total_fmt} [{elapsed}]") as progress:
-            self.clean_output_dir()
-            progress_step()
+            for index, (label, action) in enumerate(steps):
+                symbol = CHECK if index == len(steps) - 1 else ARROW
+                progress.set_description_str(f"{symbol} {index+1}. {label[:25].ljust(25)}")
+                action()
+                progress.update(1)
 
-            self.collect_posts()
-            self.collect_pages()
-            progress_step()
-
-            total_posts = sum(len(posts) for posts in self.posts.values())
-            for posts in self.posts.values():
-                for post in posts:
-                    self.render_page(post, normalize_url_path(post['url']))
-            progress_step()
-
-            for page in self.pages:
-                self.render_page(page, normalize_url_path(page['url']))
-            progress_step()
-
-            self.generate_feed()
-            self.generate_search_index()
-            progress_step()
-
-            self.copy_static_files()
-            progress_step()
-
-        print(f"{CHECK} {MESSAGES['info']['build_complete']}")
-        print(f"{INFO} {MESSAGES['info']['build_stats'].format(total_posts, len(self.pages))}")
+        print(f"{CHECK} {BUILD_MESSAGES['build_complete']}")
+        print(f"{INFO} {BUILD_MESSAGES['build_stats'].format(self.post_count, len(self.pages))}")
 
 
 # ============================================================================
@@ -1086,8 +200,7 @@ class BlogCLI:
         Args:
             args: Command-line arguments
         """
-        builder = SiteBuilder()
-        builder.build()
+        TerminalSiteBuilder().build()
 
     def serve(self, args: argparse.Namespace) -> None:
         """Start local development server
@@ -1098,11 +211,12 @@ class BlogCLI:
         port = args.port
         site_dir = self.root_dir / DIR_BUILD
 
+        builder = TerminalSiteBuilder()
         if not site_dir.exists():
-            print(MESSAGES['info']['building_site'])
-            builder = SiteBuilder()
+            print(BUILD_MESSAGES['building_site'])
             builder.build()
 
+        site_url = f"{builder.base_url}/".encode()
         site_dir_abs = str(site_dir.resolve())
 
         print(MESSAGES['info']['server_start'].format(port))
@@ -1157,24 +271,15 @@ class BlogCLI:
                     content = f.read()
                     f.close()
 
-                    # Rewrite HTML content
+                    # Point <base> and absolute site URLs at the local root
                     if path.endswith(EXT_HTML) and (b'<html' in content or b'<!DOCTYPE' in content):
-                        content = re.sub(PATTERN_BASE_TAG, b'', content)
-                        # Rewrite absolute URLs to relative for local development
-                        content = content.replace(b'https://lucianofedericopereira.github.io/codecraft/', b'/')
-                        content = content.replace(b'./assets/', b'/assets/')
-                        content = content.replace(b'"./examples/', b'"/examples/')
-                        content = content.replace(b"'examples/", b"'/examples/")
+                        content = content.replace(site_url, b'/')
                         content = re.sub(
                             PATTERN_CONSOLE_SUPPRESS,
                             b'// Console suppression disabled for local development\n\n        ',
                             content,
                             flags=re.DOTALL
                         )
-
-                    # Rewrite JavaScript content
-                    elif path.endswith(EXT_JS):
-                        content = content.replace(b'`examples/${', b'`/examples/${')
 
                     # Send response
                     self.send_response(200)
@@ -1244,7 +349,7 @@ class BlogCLI:
         notifier = pyinotify.Notifier(wm, handler)
 
         watch_dirs = [DIR_THEMES, DIR_CONTENT]
-        watch_files = ['codecraft.py']
+        watch_files = ['codecraft.py', 'publish.py']
 
         for d in watch_dirs:
             path = self.root_dir / d

@@ -216,12 +216,12 @@ const initializeMermaid = () => {
     script.defer = true;
     script.textContent = `
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@${config.version}/+esm';
-        mermaid.initialize({ startOnLoad: true, theme: 'forest' });
+        mermaid.initialize({ startOnLoad: false, theme: 'forest' });
         mermaid.run({ querySelector: '.language-mermaid' }).then(() => {
             document.querySelectorAll('.language-mermaid').forEach(el => {
                 el.classList.add('mermaid-loaded');
             });
-        });
+        }).catch(error => console.error(error));
     `;
     document.body.appendChild(script);
 };

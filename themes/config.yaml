@@ -86,5 +86,5 @@ comments:
   src: https://utteranc.es/client.js
 
 scripts:
-  mermaid: 11.4.1
+  mermaid: 12.1.0
   lunr: 2.3.9

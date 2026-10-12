@@ -1,1 +1,1 @@
-{% if page.url == "/" %}{{ site.meta.title }}{% elif page.collection %}{{ page.collection|upper }}: {{ page.title|capitalize }} | {{ site.meta.title }}{% else %}{{ page.title|capitalize|default(site.meta.title) }} | {{ site.meta.title }}{% endif %}
+{% if page.url == "/" %}{{ site.meta.title }}{% elif page.collection %}{{ page.collection|upper }}: {{ page.title }} | {{ site.meta.title }}{% else %}{{ page.title|default(site.meta.title) }} | {{ site.meta.title }}{% endif %}

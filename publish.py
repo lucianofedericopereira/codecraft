@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
 """
 CodeCraft Static Site Generator - Publishing System
-Handles site building and publishing for the CodeCraft static site generator
+Headless site builder: used directly by CI and imported by codecraft.py
 """
 from __future__ import annotations
 
 import copy
+import html
 import re
 import shutil
+import sys
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import frontmatter
+import minify_html
 import yaml
 from jinja2 import Environment, FileSystemLoader
 from markdown import markdown
@@ -45,6 +48,9 @@ FILE_CSS_TEMPLATE = 'codeCraft.css'
 FILE_CODECRAFT_CSS = 'codeCraft.css'
 FILE_FEED = 'feed.xml'
 FILE_SEARCH = 'search.json'
+FILE_SITEMAP = 'sitemap.xml'
+FILE_LLMS = 'llms.txt'
+FILE_LLMS_FULL = 'llms-full.txt'
 
 # Markdown configuration
 MD_EXTENSIONS = ['extra', 'toc']
@@ -56,6 +62,7 @@ CSS_CLASS_LANGUAGE_PLAINTEXT = 'language-plaintext highlighter-rouge'
 CSS_CLASS_LANGUAGE_MERMAID = 'language-mermaid'
 
 # Regex patterns
+PATTERN_TILDE_BLOCK = r'^~~~.*?^~~~[ \t]*$'
 PATTERN_MERMAID_BLOCK = r'```mermaid\n(.*?)```'
 PATTERN_CODE_BLOCK = r'```(\w+)?\n(.*?)```'
 PATTERN_EXAMPLE_SHORTCODE = r'\[example:(\d+)\]'
@@ -75,6 +82,9 @@ TEMPLATE_ARCHIVE = 'archive.html'
 DEFAULT_POST_LIMIT = 10
 FEED_POST_LIMIT = 10
 
+# Meta description length
+DESCRIPTION_LENGTH = 160
+
 # Font weight mappings
 FONT_WEIGHT_MAP = {
     'thin': '100',
@@ -92,6 +102,7 @@ FONT_WEIGHT_MAP = {
 DEFAULT_CONFIG = {
     "post_limit": DEFAULT_POST_LIMIT,
     "search_enabled": False,
+    "minify": True,
     "base": {
         "url": "localhost",
         "folder": ""
@@ -115,6 +126,18 @@ DEFAULT_CONFIG = {
     "sections": ["design", "code", "projects"],
     "rules": [],
     "scripts": {},
+}
+
+# Build messages
+MESSAGES = {
+    "config_not_found": "Config file not found: {} (using default configuration)",
+    "invalid_yaml": "Invalid YAML format in {}: {} (using default configuration)",
+    "reading_file": "Error reading {}: {}",
+    "parsing_markdown": "Error parsing markdown in {}: {}",
+    "sections_not_found": "Sections directory not found: {}",
+    "building_site": "Building site...",
+    "build_complete": "Build complete! Output in build/",
+    "build_stats": "Posts: {}, Pages: {}",
 }
 
 
@@ -155,6 +178,25 @@ def strip_all_whitespace(value: str) -> str:
         String with all whitespace removed
     """
     return re.sub(r'\s+', '', value)
+
+
+def extract_description(content_html: str, limit: int = DESCRIPTION_LENGTH) -> str:
+    """Plain text of the first real paragraph, cut at a word boundary
+
+    Args:
+        content_html: Rendered HTML content
+        limit: Maximum length in characters
+
+    Returns:
+        Description text, or empty string if no paragraph is found
+    """
+    for paragraph in re.findall(r'<p>(.*?)</p>', content_html, re.DOTALL):
+        text = ' '.join(html.unescape(re.sub(r'<[^>]+>', '', paragraph)).split())
+        if text and 'PLACEHOLDER' not in text:
+            if len(text) <= limit:
+                return text
+            return text[:limit - 1].rsplit(' ', 1)[0].rstrip('.,;:—-') + '…'
+    return ''
 
 
 def normalize_url_path(path: str) -> str:
@@ -319,6 +361,40 @@ def extract_example_shortcodes(content: str, directives: Dict[str, str]) -> str:
     return re.sub(PATTERN_EXAMPLE_SHORTCODE, replace_example, content)
 
 
+def protect_tilde_blocks(content: str) -> Tuple[str, List[str]]:
+    """Set aside ~~~ fenced blocks so backtick passes don't reach inside them
+
+    Args:
+        content: Markdown content
+
+    Returns:
+        Tuple of (content with placeholders, list of tilde blocks)
+    """
+    tilde_blocks = []
+
+    def save_tilde(match):
+        tilde_blocks.append(match.group(0))
+        return f'TILDE_PLACEHOLDER_{len(tilde_blocks)-1}'
+
+    content = re.sub(PATTERN_TILDE_BLOCK, save_tilde, content, flags=re.DOTALL | re.MULTILINE)
+    return content, tilde_blocks
+
+
+def restore_tilde_blocks(content: str, tilde_blocks: List[str]) -> str:
+    """Put ~~~ fenced blocks back for Markdown to render
+
+    Args:
+        content: Markdown content with placeholders
+        tilde_blocks: List of tilde blocks
+
+    Returns:
+        Markdown content with tilde blocks restored
+    """
+    for i, block in enumerate(tilde_blocks):
+        content = content.replace(f'TILDE_PLACEHOLDER_{i}', block)
+    return content
+
+
 def extract_mermaid_blocks(content: str) -> Tuple[str, List[str]]:
     """Extract mermaid blocks and replace with placeholders
 
@@ -351,7 +427,7 @@ def restore_mermaid_blocks(content_html: str, mermaid_blocks: List[str]) -> str:
     for i, mermaid_content in enumerate(mermaid_blocks):
         content_html = content_html.replace(
             f'<p>MERMAID_PLACEHOLDER_{i}</p>',
-            f'<pre><code class="{CSS_CLASS_LANGUAGE_MERMAID}">{mermaid_content}</code></pre>'
+            f'<pre><code class="{CSS_CLASS_LANGUAGE_MERMAID}">{html.escape(mermaid_content, quote=False)}</code></pre>'
         )
     return content_html
 
@@ -410,11 +486,17 @@ def process_markdown_content(content: str) -> Tuple[str, Dict[str, str]]:
     # Extract example shortcodes
     content = extract_example_shortcodes(content, include_directives)
 
+    # Set aside ~~~ fences
+    content, tilde_blocks = protect_tilde_blocks(content)
+
     # Extract mermaid blocks
     content, mermaid_blocks = extract_mermaid_blocks(content)
 
     # Highlight code blocks
     content = highlight_code_blocks(content)
+
+    # Restore ~~~ fences
+    content = restore_tilde_blocks(content, tilde_blocks)
 
     # Convert markdown to HTML
     content_html = markdown(content, extensions=MD_EXTENSIONS, extension_configs={})
@@ -473,14 +555,28 @@ class SiteBuilder:
         config_file = self.root_dir / config_path
         config = {}
 
-        if config_file.exists():
+        if not config_file.exists():
+            self.warn(MESSAGES['config_not_found'].format(config_path))
+        else:
             try:
                 with open(config_file, 'r', encoding='utf-8') as f:
                     config = yaml.safe_load(f) or {}
-            except Exception:
+            except yaml.YAMLError as e:
+                self.warn(MESSAGES['invalid_yaml'].format(config_path, e))
+                config = {}
+            except Exception as e:
+                self.warn(MESSAGES['reading_file'].format(config_path, e))
                 config = {}
 
         return apply_defaults(config, DEFAULT_CONFIG)
+
+    def warn(self, message: str) -> None:
+        """Report a non-fatal problem
+
+        Args:
+            message: Warning text
+        """
+        print(f"warning: {message}", file=sys.stderr)
 
     def _build_base_url(self) -> str:
         """Build the base URL from config
@@ -528,7 +624,7 @@ class SiteBuilder:
 
         return {
             'lunr': f"https://cdn.jsdelivr.net/npm/lunr@{scripts.get('lunr', '2.3.9')}/+esm",
-            'mermaid': f"https://cdn.jsdelivr.net/npm/mermaid@{scripts.get('mermaid', '11.4.1')}/+esm"
+            'mermaid': f"https://cdn.jsdelivr.net/npm/mermaid@{scripts.get('mermaid', '12.1.0')}/+esm"
         }
 
     def _get_path_defaults(self, file_path: Path) -> Dict[str, bool]:
@@ -574,19 +670,23 @@ class SiteBuilder:
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 post = frontmatter.load(f)
-        except Exception:
+        except Exception as e:
+            self.warn(MESSAGES['reading_file'].format(file_path, e))
             return None
 
         path_defaults = self._get_path_defaults(file_path)
 
         try:
             content_html, include_directives = process_markdown_content(post.content)
-        except Exception:
+        except Exception as e:
+            self.warn(MESSAGES['parsing_markdown'].format(file_path, e))
             return None
 
         return {
             'content': content_html,
+            'markdown': post.content,
             'title': post.get('title', ''),
+            'description': post.get('description') or extract_description(content_html) or self.config['meta']['tagline'],
             'date': post.get('date', ''),
             'comments': post.get('comments', path_defaults.get('comments', False)),
             'mermaid': post.get('mermaid', path_defaults.get('mermaid', False)),
@@ -618,6 +718,7 @@ class SiteBuilder:
 
                 post_slug = md_file.stem
                 post_data['url'] = f"{collection_name}/{post_slug}/"
+                post_data['md_url'] = f"{collection_name}/{post_slug}.md"
                 post_data['collection'] = collection_name
 
                 self.posts[collection_name].append(post_data)
@@ -634,6 +735,7 @@ class SiteBuilder:
         sections_dir = self.theme_dir / DIR_SECTIONS
 
         if not sections_dir.exists():
+            self.warn(MESSAGES['sections_not_found'].format(sections_dir))
             return
 
         for page_file in sections_dir.glob('*.md'):
@@ -737,6 +839,62 @@ class SiteBuilder:
             all_posts=self.get_all_posts()
         )
 
+    def page_url(self, page_data: Dict) -> str:
+        """Absolute URL of a page or post
+
+        Args:
+            page_data: Page data dictionary
+
+        Returns:
+            Absolute URL string
+        """
+        return f"{self.base_url}/{page_data['url'].lstrip('/')}"
+
+    def _structured_data(self, page_data: Dict, logo_file: str) -> Dict:
+        """Build schema.org JSON-LD for a page or post
+
+        Args:
+            page_data: Page data dictionary
+            logo_file: Logo file name inside assets
+
+        Returns:
+            JSON-LD dictionary
+        """
+        meta = self.config['meta']
+        url = self.page_url(page_data)
+        author = {'@type': 'Person', 'name': meta['author']}
+        data = {
+            '@context': 'https://schema.org',
+            'url': url,
+            'description': page_data['description'],
+            'inLanguage': meta['locale'],
+            'author': author,
+        }
+
+        if page_data.get('collection'):
+            data.update({
+                '@type': 'BlogPosting',
+                'headline': page_data['title'],
+                'mainEntityOfPage': url,
+                'datePublished': str(page_data['date']),
+                'articleSection': page_data['collection'],
+                'publisher': {
+                    '@type': 'Organization',
+                    'name': meta['author'],
+                    'logo': {'@type': 'ImageObject', 'url': f"{self.base_url}/{DIR_ASSETS}/{logo_file}"},
+                },
+            })
+        elif page_data['url'] == '/':
+            data.update({'@type': 'WebSite', 'name': meta['title']})
+        else:
+            data.update({
+                '@type': 'WebPage',
+                'name': page_data['title'],
+                'isPartOf': {'@type': 'WebSite', 'name': meta['title'], 'url': f"{self.base_url}/"},
+            })
+
+        return data
+
     def _build_template_context(self, page_data: Dict) -> Dict:
         """Build template rendering context
 
@@ -759,6 +917,8 @@ class SiteBuilder:
             'all_posts': self.get_all_posts()[:self.config.get('post_limit', DEFAULT_POST_LIMIT)],
             'use_base_tag': True,
             'base_url': self.base_url,
+            'page_url': self.page_url(page_data),
+            'structured_data': self._structured_data(page_data, logo_file),
             'domain': f"https://{self.config['base']['url']}",
             'folder': "",
             'asset': "./assets",
@@ -785,6 +945,10 @@ class SiteBuilder:
         # Build context and render
         context = self._build_template_context(page_data)
         html = template.render(**context)
+        if self.config.get('minify'):
+            # minify_js stays off: codecraft serve matches an inline script comment
+            html = minify_html.minify(html, minify_css=True, minify_js=False,
+                                      keep_closing_tags=True, keep_html_and_head_opening_tags=True)
 
         # Write output
         output_file = self.output_dir / output_path / 'index.html'
@@ -821,6 +985,23 @@ class SiteBuilder:
 
         with open(self.output_dir / FILE_SEARCH, 'w', encoding='utf-8') as f:
             f.write(search_json)
+
+    def generate_discovery_files(self) -> None:
+        """Generate sitemap, llms.txt, llms-full.txt and per-post Markdown sources"""
+        context = {
+            'site': self.config,
+            'base_url': self.base_url,
+            'posts': self.posts,
+            'all_posts': self.get_all_posts(),
+            'pages': self.pages,
+        }
+
+        for name in (FILE_SITEMAP, FILE_LLMS, FILE_LLMS_FULL):
+            with open(self.output_dir / name, 'w', encoding='utf-8') as f:
+                f.write(self.env.get_template(name).render(**context))
+
+        for post in context['all_posts']:
+            shutil.copy2(post['file_path'], self.output_dir / post['md_url'])
 
     def generate_css(self) -> None:
         """Generate CSS from template with font configurations"""
@@ -879,36 +1060,48 @@ class SiteBuilder:
         # Generate CSS from template
         self.generate_css()
 
-    def build(self) -> None:
-        """Build the entire site"""
-        print("Building site...")
-
-        self.clean_output_dir()
-        print("✓ Cleaned output directory")
-
-        self.collect_posts()
-        self.collect_pages()
-        print("✓ Collected posts and pages")
-
-        total_posts = sum(len(posts) for posts in self.posts.values())
+    def render_posts(self) -> None:
+        """Render every collected post"""
         for posts in self.posts.values():
             for post in posts:
                 self.render_page(post, normalize_url_path(post['url']))
-        print("✓ Rendered posts")
 
+    def render_pages(self) -> None:
+        """Render every collected page"""
         for page in self.pages:
             self.render_page(page, normalize_url_path(page['url']))
-        print("✓ Rendered pages")
 
-        self.generate_feed()
-        self.generate_search_index()
-        print("✓ Generated feed & search")
+    @property
+    def post_count(self) -> int:
+        """Total number of collected posts"""
+        return sum(len(posts) for posts in self.posts.values())
 
-        self.copy_static_files()
-        print("✓ Copied static assets")
+    def steps(self) -> List[Tuple[str, Callable[[], None]]]:
+        """Ordered build steps as (label, action) pairs
 
-        print("\n✓ Build complete! Output in build/")
-        print(f"   Posts: {total_posts}, Pages: {len(self.pages)}")
+        Returns:
+            List of build steps
+        """
+        return [
+            ("Cleaning output directory", self.clean_output_dir),
+            ("Collecting posts and pages", lambda: (self.collect_posts(), self.collect_pages())),
+            ("Rendering posts", self.render_posts),
+            ("Rendering pages", self.render_pages),
+            ("Generating feed & search", lambda: (self.generate_feed(), self.generate_search_index())),
+            ("Writing discovery files", self.generate_discovery_files),
+            ("Copying static assets", self.copy_static_files),
+        ]
+
+    def build(self) -> None:
+        """Build the entire site"""
+        print(MESSAGES['building_site'])
+
+        for label, action in self.steps():
+            print(f"→ {label}")
+            action()
+
+        print(f"\n✓ {MESSAGES['build_complete']}")
+        print(f"   {MESSAGES['build_stats'].format(self.post_count, len(self.pages))}")
 
 
 if __name__ == '__main__':

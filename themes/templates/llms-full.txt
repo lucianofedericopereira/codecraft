@@ -1,0 +1,14 @@
+{% autoescape false %}# {{ site.meta.title }}
+
+> {{ site.meta.tagline }}
+{% for item in all_posts %}
+---
+
+# {{ item.title }}
+
+URL: {{ base_url }}/{{ item.url }}
+Markdown: {{ base_url }}/{{ item.md_url }}
+Date: {{ item.date }}
+
+{{ item.markdown }}
+{% endfor %}{% endautoescape %}
