@@ -541,8 +541,7 @@ class SiteBuilder:
         self.asset_urls = self._get_asset_urls()
 
         # Storage for posts and pages
-        sections = self.config.get('sections', [])
-        self.posts = {name: [] for name in sections} if sections else {'design': [], 'code': [], 'projects': []}
+        self.posts = {name: [] for name in self.config['sections']}
         self.pages = []
 
     def _load_config(self, config_path: str) -> Dict:
@@ -639,7 +638,10 @@ class SiteBuilder:
             Dictionary of default values
         """
         rules_config = self.config.get('rules', [])
-        file_path_str = str(file_path)
+        try:
+            relative_path = file_path.relative_to(self.root_dir).as_posix()
+        except ValueError:
+            relative_path = file_path.as_posix()
 
         defaults = {
             'toc': False,
@@ -653,25 +655,30 @@ class SiteBuilder:
             scope = rule.get('scope', {})
             scope_path = scope.get('path', '')
 
-            if scope_path and scope_path in file_path_str:
+            scope_path = scope_path.strip('/')
+            if scope_path and (relative_path == scope_path or relative_path.startswith(scope_path + '/')):
                 if 'features' in rule:
                     defaults.update(rule['features'])
 
         return defaults
 
-    def parse_markdown_file(self, file_path: Path, is_post: bool = True) -> Optional[Dict]:
+    def parse_markdown_file(self, file_path: Path, is_post: bool = True, source: Optional[str] = None) -> Optional[Dict]:
         """Parse a markdown file with frontmatter
 
         Args:
             file_path: Path to markdown file
             is_post: True for blog posts, False for pages
+            source: Markdown text to parse instead of reading file_path
 
         Returns:
             Dictionary with post data or None on error
         """
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                post = frontmatter.load(f)
+            if source is not None:
+                post = frontmatter.loads(source)
+            else:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    post = frontmatter.load(f)
         except Exception as e:
             self.warn(MESSAGES['reading_file'].format(file_path, e))
             return None
@@ -741,8 +748,16 @@ class SiteBuilder:
             self.warn(MESSAGES['sections_not_found'].format(sections_dir))
             return
 
-        for page_file in sorted(sections_dir.glob('*.md')):
-            page_data = self.parse_markdown_file(page_file, is_post=False)
+        page_files = {page_file.stem: (page_file, None) for page_file in sections_dir.glob('*.md')}
+        for section in self.config['sections']:
+            page_files.setdefault(section, (
+                sections_dir / f"{section}.md",
+                f"---\ntitle: {section.capitalize()}\n---\n{{% include category.html %}}\n",
+            ))
+
+        for stem in sorted(page_files):
+            page_file, source = page_files[stem]
+            page_data = self.parse_markdown_file(page_file, is_post=False, source=source)
 
             if page_data is None:
                 continue
@@ -758,8 +773,9 @@ class SiteBuilder:
             self.pages.append(page_data)
 
     def annotate_pages(self) -> None:
-        """Give each page the date of the newest post it lists, and flag empty section pages"""
+        """Give each page the date of the newest post it lists, and drop section pages with no posts"""
         all_posts = self.get_all_posts()
+        kept = []
         for page in self.pages:
             directives = page.get('include_directives', {}).values()
             if 'category' in directives:
@@ -769,7 +785,9 @@ class SiteBuilder:
             else:
                 listed = []
             page['lastmod'] = max((str(post.get('updated') or post['date']) for post in listed), default='')
-            page['empty'] = 'category' in directives and not listed
+            if listed or 'category' not in directives:
+                kept.append(page)
+        self.pages = kept
 
     def get_all_posts(self) -> List[Dict]:
         """Get all posts combined from all sections
@@ -1036,7 +1054,7 @@ class SiteBuilder:
         return '\n\n'.join(filter(None, (heading, body.strip()))) + '\n'
 
     def sitemap_entries(self) -> List[Dict]:
-        """Every non-empty page and every post, as the sitemap lists them
+        """Every page and every post, as the sitemap lists them
 
         Returns:
             List of entries with title, url, md_url, section and lastmod
@@ -1049,7 +1067,7 @@ class SiteBuilder:
                 'section': '',
                 'lastmod': page['lastmod'],
             }
-            for page in self.pages if not page['empty']
+            for page in self.pages
         ]
         entries += [
             {
@@ -1122,7 +1140,7 @@ class SiteBuilder:
             fonts.append(font_data)
 
         template = self.env.get_template(FILE_CSS_TEMPLATE)
-        css_content = template.render(fonts=fonts)
+        css_content = template.render(fonts=fonts, sections=self.config['sections'])
 
         assets_dst = self.output_dir / DIR_ASSETS
         assets_dst.mkdir(parents=True, exist_ok=True)

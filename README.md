@@ -151,9 +151,9 @@ sections:
   - code
   - projects
 
-rules:                    # frontmatter defaults by path
+rules:                    # frontmatter defaults, by path from the repository root
   - scope:
-      path: content/code
+      path: content
     features:
       toc: true
 
@@ -245,24 +245,19 @@ Templates live in `themes/templates/`:
 | `codeCraft.css` | the stylesheet, itself a template so fonts come from the config |
 | `feed.xml`, `search.json`, `sitemap.xml`, `sitemap.html`, `sitemap.md`, `llms.txt`, `llms-full.txt` | the generated files |
 
-Pages are Markdown files in `themes/sections/`. `home.md` becomes the front page, and every other file becomes a page at its own name.
+Pages are Markdown files in `themes/sections/`. `home.md` becomes the front page, and every other file becomes a page at its own name. A section without a file there gets a page anyway, listing its posts by year; write the file only when you want your own title or an introduction. A section with no posts yet gets no page at all.
 
 Templates get these filters on top of Jinja2's own: `date_format(format)`, `month_year`, `date_archive`, `date_full`, `year`, `strip_whitespace` and `split(separator)`.
 
 ### Adding a section
 
-1. Add it to `sections` in `themes/config.yaml`.
-2. Create `content/tutorials/`.
-3. Add `themes/sections/tutorials.md`:
+Add it to `sections` in `themes/config.yaml` and write a post:
 
-   ```markdown
-   ---
-   title: Tutorials
-   ---
-   {% include category.html %}
-   ```
+```bash
+python codecraft.py new -c tutorials -t "My First Tutorial"
+```
 
-4. Write posts in `content/tutorials/`.
+That's the whole job. The section gets its page, its archive filter, its place in the feed, the sitemap and `llms.txt`, and new years show up in the archive on their own. Nothing in the templates or the stylesheet names a section or a year.
 
 ---
 

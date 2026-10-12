@@ -42,7 +42,7 @@ sections:
 
 rules:
   - scope:
-      path: sections/home.md
+      path: themes/sections/home.md
     features:
       banner: false
       toc: false
@@ -50,7 +50,7 @@ rules:
       mermaid: false
       codepen: false
   - scope:
-      path: sections
+      path: themes/sections
     features:
       banner: true
       toc: false
@@ -58,21 +58,7 @@ rules:
       mermaid: false
       codepen: false
   - scope:
-      path: content/design
-    features:
-      toc: true
-      comments: false
-      mermaid: false
-      codepen: false
-  - scope:
-      path: content/code
-    features:
-      toc: true
-      comments: false
-      mermaid: false
-      codepen: false
-  - scope:
-      path: content/projects
+      path: content
     features:
       toc: true
       comments: false

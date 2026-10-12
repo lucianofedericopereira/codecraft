@@ -28,6 +28,11 @@ Every release, as it ships.
 - Changed section pages to build in filename order, so every machine produces the same output
 - Removed head tags that were wrong or had no effect: `X-UA-Compatible`, the non-standard `copyright` and `repository`, `robots: index, follow` (the default), `og:locale` in a format Open Graph does not accept, `article:author` holding a name where a profile URL is expected, the `twitter:title` and `twitter:description` copies of their Open Graph tags, and a preconnect to the site's own origin
 - Changed Mermaid to initialize with `startOnLoad: false`, as rendering is explicit, and to log render errors
+- Fixed the archive's Code and Design filters hiding the 2026 heading: the filter only knew 2021 to 2025, so every new year lost its heading
+- Changed the archive into one group per year, so a year with nothing in the chosen section hides itself, heading and all
+- Changed the archive filter buttons, the filter rules in the stylesheet and `codecraft.py new` to read `sections` from the config; adding a section is one line in the config and a folder of posts
+- Added a generated page for every section without a file in `themes/sections/`, and stopped building section pages that have no posts
+- Changed `rules` to match paths from the repository root (`content`, `themes/sections`) instead of anywhere in the file path, and merged the three identical per-section rules into one `content` rule
 - Fixed the canonical URL, `og:url` and JSON-LD `url` missing the slash between the site folder and the page path (`…/codecraftcode/post/`), which pointed every post at a 404
 - Fixed a `mermaid` code block shown as an example inside a `~~~` fence rendering as the text `MERMAID_PLACEHOLDER_0`
 - Fixed Mermaid diagrams containing `<` or `&`: the source is now HTML-escaped

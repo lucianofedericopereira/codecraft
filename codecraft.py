@@ -18,7 +18,7 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from publish import DEFAULT_CONFIG, DIR_BUILD, DIR_CONTENT, DIR_THEMES, SiteBuilder
+from publish import DIR_BUILD, DIR_CONTENT, DIR_THEMES, SiteBuilder
 from publish import MESSAGES as BUILD_MESSAGES
 
 # ============================================================================
@@ -56,7 +56,6 @@ Write your introduction here...
 # User messages
 MESSAGES = {
     "error": {
-        "category": "Error: Category must be one of: {}",
         "editor_not_found": "Editor '{}' not found",
         "file_exists": "Warning: File {} already exists",
     },
@@ -393,10 +392,6 @@ class BlogCLI:
         Args:
             args: Command-line arguments
         """
-        if args.category not in DEFAULT_CONFIG['sections']:
-            print(MESSAGES['error']['category'].format(', '.join(DEFAULT_CONFIG['sections'])))
-            sys.exit(1)
-
         # Generate slug
         slug = args.slug if args.slug else slugify(args.title)
 
@@ -503,7 +498,7 @@ def main() -> None:
     new_parser.add_argument(
         '-c', '--category',
         required=True,
-        choices=DEFAULT_CONFIG['sections'],
+        choices=TerminalSiteBuilder().config['sections'],
         help=MESSAGES["help"]["category"]
     )
     new_parser.add_argument(

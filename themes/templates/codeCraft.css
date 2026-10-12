@@ -182,32 +182,10 @@ main {
         color: var(--r0);
     }
 
-    .items:has(#code:checked) .list.code {display: block}
-    .items:has(#design:checked) .list.design {display: block}
-    .items:has(#projects:checked) .list.projects {display: block}
-
-    /* Hide all year headings when a specific filter is active */
-    .items:has(#code:checked) h3,
-    .items:has(#design:checked) h3,
-    .items:has(#projects:checked) h3 {display: none}
-
-    /* Show year heading only if container has matching visible items for that year */
-    .items:has(#code:checked):has(.year-2025.list.code) h3.year-2025,
-    .items:has(#code:checked):has(.year-2024.list.code) h3.year-2024,
-    .items:has(#code:checked):has(.year-2023.list.code) h3.year-2023,
-    .items:has(#code:checked):has(.year-2022.list.code) h3.year-2022,
-    .items:has(#code:checked):has(.year-2021.list.code) h3.year-2021,
-    .items:has(#design:checked):has(.year-2025.list.design) h3.year-2025,
-    .items:has(#design:checked):has(.year-2024.list.design) h3.year-2024,
-    .items:has(#design:checked):has(.year-2023.list.design) h3.year-2023,
-    .items:has(#design:checked):has(.year-2022.list.design) h3.year-2022,
-    .items:has(#design:checked):has(.year-2021.list.design) h3.year-2021,
-    .items:has(#projects:checked):has(.year-2025.list.projects) h3.year-2025,
-    .items:has(#projects:checked):has(.year-2024.list.projects) h3.year-2024,
-    .items:has(#projects:checked):has(.year-2023.list.projects) h3.year-2023,
-    .items:has(#projects:checked):has(.year-2022.list.projects) h3.year-2022,
-    .items:has(#projects:checked):has(.year-2021.list.projects) h3.year-2021 {display: flex}
-}
+    /* Archive filter, one pair per configured section: hide other sections' posts and years left empty */
+{% for section in sections %}    .items:has(#{{ section }}:checked) .list:not([data-section="{{ section }}"]) {display: none}
+    .items:has(#{{ section }}:checked) .year:not(:has([data-section="{{ section }}"])) {display: none}
+{% endfor %}}
 
 [class^="VI"],
 #translate,
@@ -1031,14 +1009,6 @@ main ol li {
 
     .controllers input {
         display: none;
-    }
-
-    .items p {
-        display: none;
-    }
-
-    .items:has(#all:checked) .list {
-        display: block;
     }
 
     main p.title {

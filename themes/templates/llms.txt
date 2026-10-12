@@ -6,7 +6,7 @@ Blog by {{ site.meta.author }}. Every entry and page is also published as Markdo
 
 ## Pages
 
-{% for page in pages if not page.empty %}- [{{ page.title }}]({{ base_url }}/{{ page.md_url }})
+{% for page in pages %}- [{{ page.title }}]({{ base_url }}/{{ page.md_url }})
 {% endfor %}{% for section, entries in posts.items() if entries %}
 ## {{ section|capitalize }}
 
