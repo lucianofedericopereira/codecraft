@@ -16,7 +16,7 @@ Every release, as it ships.
 - Fixed the printed page header, meant to show the author and license from `meta` in the config, coming out empty: it read attributes no element carried
 - Changed the printed tagline to sit 1.6px higher, level with the title
 - Added a `Tags:` label and a `#` before each tag on printed posts
-- Changed printed text to a type scale in points: 20 for the title, 15 and 13 for section headings, 11 for body text, 10 for tables, 8.5 for code and 8 for notes, with code in the code font and square-bullet lists indented less, with a little space between each bullet and its text
+- Changed printed text to a type scale in points: 20 for the title, 14 and 13 for section headings, 11 for body text, 10 for tables, 8.5 for code and 8 for notes, with code in the code font and square-bullet lists indented less, with a little space between each bullet and its text
 - Fixed level-three headings missing from printed posts: the rule meant to hide the Related heading hid every one
 - Changed printed code blocks to wrap long lines instead of cutting them off at the page edge, and to break across pages with at least four lines on each side
 - Changed printed paragraphs and list items to break across pages with at least three lines on each side, where whole paragraphs used to jump to the next page, and kept headings and a line introducing code with what follows

@@ -1849,7 +1849,7 @@ main ol li {
         color: #000000;
     }
 
-    /* Type scale in pt: 20 / 15 / 13 / 11 body / 10 tables / 8.5 code / 8 notes */
+    /* Type scale in pt: 20 / 14 / 13 / 11 body / 10 tables / 8.5 code / 8 notes */
     body {
         font-size: 11pt;
     }
@@ -1857,11 +1857,14 @@ main ol li {
     main h1 {
         font-size: 20pt;
         line-height: 1.2;
+        margin-bottom: 16pt;
     }
 
     main h2 {
-        font-size: 15pt;
+        font-size: 14pt;
         line-height: 1.25;
+        margin-top: 14pt;
+        margin-bottom: 6pt;
     }
 
     main h3 {
