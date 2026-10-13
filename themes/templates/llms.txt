@@ -11,7 +11,11 @@ Blog by {{ site.meta.author }}. Every entry and page is also published as Markdo
 ## {{ section|capitalize }}
 
 {% for item in entries %}- [{{ item.title }}]({{ base_url }}/{{ item.md_url }}): {{ item.description }}
-{% endfor %}{% endfor %}
+{% endfor %}{% endfor %}{% if tag_pages %}
+## Tags
+
+{% for tag in tag_pages %}- [{{ tag.title }}]({{ base_url }}/{{ tag.md_url }}){% if tag.description %}: {{ tag.description }}{% endif %}
+{% endfor %}{% endif %}
 ## Optional
 
 - [Full text]({{ base_url }}/llms-full.txt): every entry in a single Markdown file

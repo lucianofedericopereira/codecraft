@@ -1,15 +1,16 @@
 {% set domain = "https://" ~ site.base.url %}{% set folder = domain ~ "/" ~ site.base.folder %}<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
   <channel>
-    <title>{{ site.meta.title }}</title>
-    <link>{{ folder }}</link>
-    <description>{{ site.meta.tagline }}</description>
+    <title>{{ site.meta.title }}{% if tag %} · {{ tag.title }}{% endif %}</title>
+    <link>{{ folder }}{% if tag %}/{{ tag.url }}{% endif %}</link>
+    <description>{% if tag %}{{ tag.description or tag.title }}{% else %}{{ site.meta.tagline }}{% endif %}</description>
     <lastBuildDate>{{ now.strftime('%a, %d %b %Y %H:%M:%S +0000') }}</lastBuildDate>
       {% for item in posts %}<item>
         <title>{{ item.collection|capitalize }} › {{ item.title }}</title>
         <link>{{ folder }}/{{ item.url }}</link>
         <guid isPermaLink="true">{{ folder }}/{{ item.url }}</guid>
-        <description>{{ item.description }}</description>
+        <description>{{ item.description }}</description>{% for slug in item.tags %}
+        <category>{{ tags[slug].title }}</category>{% endfor %}
         <pubDate>{{ item.date|date_format('%a, %d %b %Y %H:%M:%S +0000') }}</pubDate>
       </item>
       {% endfor %}</channel>

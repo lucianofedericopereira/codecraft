@@ -23,7 +23,7 @@ Hugo, Jekyll, Eleventy and Pelican are all excellent. They are also general-purp
 - **Writes in Markdown.** Each post is a `.md` file with a little YAML at the top. Code blocks are highlighted with Pygments at build time, so readers download colour, not a highlighter.
 - **Draws diagrams.** A `mermaid` code block becomes an SVG in the browser, and the library only loads on posts that ask for it.
 - **Runs live examples.** `[example:1]` drops a split-pane viewer into a post: HTML, CSS and JavaScript tabs on one side, the running result on the other.
-- **Searches without a server.** The build writes a JSON index; Lunr.js searches it in the browser.
+- **Searches without a server.** The build writes the full text of every post into a JSON index, and the browser fetches it the first time someone searches. Press `s` to search from anywhere.
 - **Feeds and comments.** An RSS feed for readers who still use one (I do), and Utterances for comments backed by GitHub issues.
 - **Gets found.** Real meta descriptions, Open Graph article tags, schema.org `BlogPosting` data, canonical URLs, a sitemap in XML, HTML and Markdown, and an `llms.txt` index. Every post is also published as plain Markdown next to its page.
 - **Ships small.** The HTML is minified on the way out.
@@ -63,9 +63,10 @@ and open http://localhost:8000. When it reads right, commit and push to `main`. 
 ```yaml
 ---
 title: "Your Post Title"          # required
-date: 2026-01-15                  # required, YYYY-MM-DD
+date: 2026-01-15                  # YYYY-MM-DD; see below if left out
 description: "One-line summary"   # optional, see below
 updated: 2026-02-01               # optional, last significant edit
+tags: [sqlite, nim]               # optional, from the tags in the config
 comments: true                    # Utterances comments
 toc: true                         # table of contents
 mermaid: false                    # load Mermaid for diagrams
@@ -77,9 +78,19 @@ sidebar: true                     # list the page in the sidebar
 
 Leave `description` out and the first paragraph of the post is used, trimmed to 160 characters. It is worth writing one when your opening line is a hook rather than a summary. The description shows up in search results, link previews, the feed and `llms.txt`.
 
+Leave `date` out and the build warns and uses the date of the file's last commit, or its modification time if it hasn't been committed yet. Not the modification time alone: a fresh checkout in CI gives every file the time of the checkout.
+
 `updated` is for edits that matter. It becomes the post's `lastmod` in the sitemap and `dateModified` in its structured data. Fixing a typo is not an update.
 
 Anything you can set here can also have a default per folder, through `rules` in the config.
+
+### Tags
+
+A post has one section and any number of tags. Sections decide the URL; tags cut across them, so a `code` post and a `design` post can share `typography`.
+
+Tags come from a list in the config, so `js` and `javascript` never drift apart. A tag the config doesn't declare is a build warning naming the file, and the post is built without it. A tag shows as a chip under every post that uses it. Once `tag_min_posts` posts use it (3 unless the config says otherwise), it also gets a page at `tags/<tag>/` with its own feed, and the chip links there. Below that, the chip is plain text, so a tag with one or two posts never makes a thin page. To give a tag's page your own title or an introduction, write `themes/sections/tags/<tag>.md` and put `{% include tag.html %}` where the list goes, as with section pages.
+
+Each tagged post ends with related posts, picked at build time: the posts sharing the most tags first, then the newest posts from its own section. A post without tags gets none. `related` in the config tunes it; with fewer than `min` candidates the block is left out, and `max: 0` turns it off.
 
 ### Code
 
@@ -119,7 +130,6 @@ Everything lives in `themes/config.yaml`.
 ```yaml
 post_limit: 10            # posts on the home page
 minify: true              # minify the HTML output
-search_file: https://you.github.io/blog/search.json
 
 base:
   url: you.github.io
@@ -143,6 +153,14 @@ assets:
       weight: Regular
       extension: woff2
 
+texture:                  # paper texture behind the posts, drawn in the browser; leave out for none
+  seed: 42                # same seed, same texture
+  ink: "#453E35"          # dark fibres and grain
+  light: "#FFFFF8"        # light fibres and grain
+  fibres: 320
+  fibre_opacity: 0.18
+  grain_opacity: 0.35     # also: fibre_size 160, fibre_scale 1120, grain_size 192, grain_alpha 18
+
 links:                    # sidebar links
   GitHub: https://github.com/you
 
@@ -150,6 +168,16 @@ sections:
   - design
   - code
   - projects
+
+tags:                     # the slug is the URL, the title is what readers see
+  sqlite: { title: SQLite }
+  nim: { title: Nim, description: "Posts about the Nim language" }
+tag_min_posts: 3          # posts a tag needs before it gets a page
+
+related:                  # related posts at the end of each post
+  min: 2                  # fewer candidates than this: no block
+  max: 5                  # most shown; 0 turns it off
+  fallback: section       # fill from the post's own section; none to use shared tags only
 
 rules:                    # frontmatter defaults, by path from the repository root
   - scope:
@@ -165,7 +193,6 @@ comments:                 # Utterances
 
 scripts:                  # CDN versions
   mermaid: 12.1.0
-  lunr: 2.3.9
 ```
 
 ---
@@ -221,7 +248,9 @@ If a post can't be read, the build says so and carries on without it.
 | `code/my-post.md` | the post's Markdown source |
 | `index.md`, `archive.md`, `code.md`… | the home, archive and section pages as Markdown |
 | `feed.xml` | RSS feed |
-| `search.json` | search index for Lunr.js |
+| `tags/`, `tags.md` | every tag in use, with its number of posts |
+| `tags/sqlite/`, `tags/sqlite.md`, `tags/sqlite/feed.xml` | a tag's posts by year, as a page, as Markdown and as a feed |
+| `search.json` | search index, the full text of every post |
 | `sitemap.xml` | sitemap for search engines |
 | `sitemap/`, `sitemap.md` | the same sitemap for people, in the site's theme, and as Markdown |
 | `llms.txt` | an index of every page and post for language models |
@@ -241,7 +270,8 @@ Templates live in `themes/templates/`:
 | `posts.html` | latest posts on the home page |
 | `category.html` | a section's posts by year |
 | `archive.html` | every post by year |
-| `posts.md`, `category.md`, `archive.md` | the same listings for the Markdown pages |
+| `tag.html`, `tags.html` | a tag's posts by year, and the list of tags |
+| `posts.md`, `category.md`, `archive.md`, `tag.md`, `tags.md` | the same listings for the Markdown pages |
 | `codeCraft.css` | the stylesheet, itself a template so fonts come from the config |
 | `feed.xml`, `search.json`, `sitemap.xml`, `sitemap.html`, `sitemap.md`, `llms.txt`, `llms-full.txt` | the generated files |
 
@@ -287,6 +317,6 @@ The engine is [MIT](LICENSE). The posts on design﹢code are published under the
 
 ## Built with
 
-[Python](https://python.org), [Jinja2](https://jinja.palletsprojects.com/), [Python-Markdown](https://python-markdown.github.io/), [Pygments](https://pygments.org/), [PyYAML](https://pyyaml.org/), [python-frontmatter](https://github.com/eyeseast/python-frontmatter), [minify-html](https://github.com/wilsonzlin/minify-html), [Lunr.js](https://lunrjs.com/), [Mermaid](https://mermaid.js.org/) and [Utterances](https://utteranc.es/), deployed with [GitHub Actions](https://github.com/features/actions) to [GitHub Pages](https://pages.github.com/).
+[Python](https://python.org), [Jinja2](https://jinja.palletsprojects.com/), [Python-Markdown](https://python-markdown.github.io/), [Pygments](https://pygments.org/), [PyYAML](https://pyyaml.org/), [python-frontmatter](https://github.com/eyeseast/python-frontmatter), [minify-html](https://github.com/wilsonzlin/minify-html), [Mermaid](https://mermaid.js.org/) and [Utterances](https://utteranc.es/), deployed with [GitHub Actions](https://github.com/features/actions) to [GitHub Pages](https://pages.github.com/).
 
 Written by [Luciano Pereira](https://github.com/lucianofedericopereira).

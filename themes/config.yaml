@@ -1,5 +1,4 @@
 post_limit: 10
-search_file: https://lucianofedericopereira.github.io/codecraft/search.json
 
 base:
   url: lucianofedericopereira.github.io
@@ -30,6 +29,14 @@ assets:
       name: JetBrainsMono
       weight: Medium
       extension: woff2
+
+texture:
+  seed: 42
+  ink: "#453E35"
+  light: "#FFFFF8"
+  fibres: 320
+  fibre_opacity: 0.18
+  grain_opacity: 0.35
 
 links:
   LinkedIn: https://www.linkedin.com/in/lucianofedericopereira/
@@ -73,4 +80,3 @@ comments:
 
 scripts:
   mermaid: 12.1.0
-  lunr: 2.3.9

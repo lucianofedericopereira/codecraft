@@ -2,6 +2,34 @@
 
 Every release, as it ships.
 
+## v1.3 - Unreleased
+
+- Changed search to look through the full text of every post, where it used to see only the first 200 characters
+- Changed search to load its index the first time the search box is used, instead of on every page view
+- Changed search to list title matches first, each with an excerpt around the match and the match highlighted
+- Added arrow keys and Enter to move through and open search results
+- Changed the search shortcut from Ctrl/Cmd+K, which browsers keep for their own search, to `s`, or Alt+S from inside another text field
+- Fixed the search shortcut on narrow screens focusing a search box hidden inside the closed menu
+- Fixed Back to the first page of a visit leaving the next page's content on screen
+- Fixed the language menu, and the menu on narrow screens, staying open after a language is picked
+- Fixed a jsDelivr outage stopping every script on the site, where only diagrams depend on it now
+- Fixed `search.json` escaping quotes by hand: it is written with Jinja's `tojson`, so a backslash or control character in a post can no longer break the index
+- Removed Lunr.js, `search_file` and `scripts.lunr` from the config, and the `search` meta tag
+- Removed the jsDelivr preconnect from pages without a Mermaid diagram
+- Removed the unused `search_enabled` setting, and a search observer that never fired
+- Added tags: a `tags:` vocabulary in `themes/config.yaml` and a `tags:` list in a post's frontmatter, with a build warning naming the file for a tag the config doesn't declare
+- Added tag chips under each post, linking to the tag's page once it has one
+- Added a page, a Markdown version and an RSS feed for every tag used by at least `tag_min_posts` posts (3 by default), and `tags/` listing every tag in use with its count
+- Added tag pages to `sitemap.xml`, `sitemap/`, `sitemap.md` and `llms.txt`
+- Added each post's tags as `article:tag` meta tags, JSON-LD `keywords`, RSS `<category>` elements and a `tags` field in `search.json`
+- Added an optional `themes/sections/tags/<tag>.md` to give a tag's page its own title and introduction, with `{% include tag.html %}` placing the list, as section pages do
+- Added related posts at the end of each tagged post, built without JavaScript: most shared tags first, then the newest from the post's section, set with `related` (`min`, `max`, `fallback`) in `themes/config.yaml`
+- Fixed posts with the same date coming out in a different order on different machines; they now follow their file names
+- Fixed a post without a `date` crashing the whole build: it now takes the date of the file's last commit, or its modification time if uncommitted, with a warning naming the file
+- Changed the deploy workflow to check out the full history, so the commit date of every file is available to the build
+- Changed the paper texture behind the content from a tiled image to fibre and grain layers drawn in the browser from a seed, set with `texture` in `themes/config.yaml` (seed, colours, fibre count, opacities); leave it out for a plain background
+- Removed `codeCraft.webp` and the `multiply` blend on the content area that it needed
+
 ## v1.2 — 2026-10-12
 
 - Added `sitemap.xml`, listing every post with its date as `lastmod` and every page with the date of the newest post it lists; a section page with no posts is left out

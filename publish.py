@@ -10,6 +10,7 @@ import hashlib
 import html
 import re
 import shutil
+import subprocess
 import sys
 from datetime import date, datetime
 from pathlib import Path
@@ -42,6 +43,7 @@ DIR_SECTIONS = 'sections'
 DIR_CONTENT = 'content'
 DIR_TEMPLATES = 'templates'
 DIR_THEMES = 'themes'
+DIR_TAGS = 'tags'
 
 # File names
 FILE_CONFIG_PATH = 'themes/config.yaml'
@@ -74,16 +76,21 @@ PATTERN_EXAMPLE_SHORTCODE = r'\[example:(\d+)\]'
 PLACEHOLDER_POSTS = 'INCLUDE_POSTS_PLACEHOLDER'
 PLACEHOLDER_CATEGORY = 'INCLUDE_CATEGORY_PLACEHOLDER'
 PLACEHOLDER_ARCHIVE = 'INCLUDE_ARCHIVE_PLACEHOLDER'
+PLACEHOLDER_TAG = 'INCLUDE_TAG_PLACEHOLDER'
 
 # Template names
 TEMPLATE_MAIN = 'codeCraft.html'
 TEMPLATE_POSTS = 'posts.html'
 TEMPLATE_CATEGORY = 'category.html'
 TEMPLATE_ARCHIVE = 'archive.html'
+TEMPLATE_TAG = 'tag.html'
+TEMPLATE_TAGS = 'tags.html'
+TEMPLATE_TAGS_MD = 'tags.md'
 
 # Post limits
 DEFAULT_POST_LIMIT = 10
 FEED_POST_LIMIT = 10
+DEFAULT_TAG_MIN_POSTS = 3
 
 # Meta description length
 DESCRIPTION_LENGTH = 160
@@ -104,7 +111,7 @@ FONT_WEIGHT_MAP = {
 # Default configuration
 DEFAULT_CONFIG = {
     "post_limit": DEFAULT_POST_LIMIT,
-    "search_enabled": False,
+    "tag_min_posts": DEFAULT_TAG_MIN_POSTS,
     "minify": True,
     "base": {
         "url": "localhost",
@@ -127,6 +134,12 @@ DEFAULT_CONFIG = {
     },
     "links": {},
     "sections": ["design", "code", "projects"],
+    "tags": {},
+    "related": {
+        "min": 2,
+        "max": 5,
+        "fallback": "section"
+    },
     "rules": [],
     "scripts": {},
 }
@@ -137,6 +150,8 @@ MESSAGES = {
     "invalid_yaml": "Invalid YAML format in {}: {} (using default configuration)",
     "reading_file": "Error reading {}: {}",
     "parsing_markdown": "Error parsing markdown in {}: {}",
+    "unknown_tag": "Unknown tag in {}: {} (declare it under tags: in themes/config.yaml)",
+    "missing_date": "No date in {}: using {} from {}",
     "sections_not_found": "Sections directory not found: {}",
     "building_site": "Building site...",
     "build_complete": "Build complete! Output in build/",
@@ -333,6 +348,7 @@ def extract_include_directives(content: str) -> Tuple[str, Dict[str, str]]:
         ('posts.html', PLACEHOLDER_POSTS, 'posts'),
         ('category.html', PLACEHOLDER_CATEGORY, 'category'),
         ('archive.html', PLACEHOLDER_ARCHIVE, 'archive'),
+        ('tag.html', PLACEHOLDER_TAG, 'tag'),
     ]
 
     for template_name, placeholder, directive in includes:
@@ -544,6 +560,7 @@ class SiteBuilder:
         # Storage for posts and pages
         self.posts = {name: [] for name in self.config['sections']}
         self.pages = []
+        self.tags = {}
 
         # Content-hashed asset URLs, so a deploy never pairs new HTML with cached CSS or JS
         self.css_content = self.render_css()
@@ -627,12 +644,11 @@ class SiteBuilder:
         """Generate CDN URLs from script version numbers in config
 
         Returns:
-            Dictionary with CDN URLs for lunr and mermaid
+            Dictionary with CDN URLs for mermaid
         """
         scripts = self.config.get('scripts', {})
 
         return {
-            'lunr': f"https://cdn.jsdelivr.net/npm/lunr@{scripts.get('lunr', '2.3.9')}/+esm",
             'mermaid': f"https://cdn.jsdelivr.net/npm/mermaid@{scripts.get('mermaid', '12.1.0')}/+esm"
         }
 
@@ -670,6 +686,22 @@ class SiteBuilder:
 
         return defaults
 
+    def file_date(self, file_path: Path) -> Tuple[date, str]:
+        """Date of a file: its last commit, else its modification time (CI checkouts reset the latter)
+
+        Args:
+            file_path: Path to the file
+
+        Returns:
+            Tuple of (date, where it came from)
+        """
+        try:
+            log = subprocess.run(['git', 'log', '-1', '--format=%cs', '--', str(file_path)],
+                                 cwd=self.root_dir, capture_output=True, text=True, check=False)
+            return date.fromisoformat(log.stdout.strip()), 'its last commit'
+        except (OSError, ValueError):
+            return date.fromtimestamp(file_path.stat().st_mtime), 'its modification time'
+
     def parse_markdown_file(self, file_path: Path, is_post: bool = True, source: Optional[str] = None) -> Optional[Dict]:
         """Parse a markdown file with frontmatter
 
@@ -692,6 +724,13 @@ class SiteBuilder:
             return None
 
         path_defaults = self._get_path_defaults(file_path)
+        post_date = post.get('date', '')
+        if is_post and not post_date:
+            post_date, origin = self.file_date(file_path)
+            self.warn(MESSAGES['missing_date'].format(file_path, post_date, origin))
+        tags = post.get('tags') or []
+        if isinstance(tags, str):
+            tags = [tags]
 
         try:
             content_html, include_directives = process_markdown_content(post.content)
@@ -704,7 +743,7 @@ class SiteBuilder:
             'markdown': post.content,
             'title': post.get('title', ''),
             'description': post.get('description') or extract_description(content_html) or self.config['meta']['tagline'],
-            'date': post.get('date', ''),
+            'date': post_date,
             'updated': post.get('updated', ''),
             'comments': post.get('comments', path_defaults.get('comments', False)),
             'mermaid': post.get('mermaid', path_defaults.get('mermaid', False)),
@@ -712,6 +751,7 @@ class SiteBuilder:
             'toc': post.get('toc', path_defaults.get('toc', is_post)),
             'banner': post.get('banner', path_defaults.get('banner', False)),
             'sidebar': post.get('sidebar', True),
+            'tags': list(dict.fromkeys(str(tag) for tag in tags)),
             'url': '',
             'file_path': file_path,
             'include_directives': include_directives
@@ -728,7 +768,7 @@ class SiteBuilder:
             if not collection_dir.exists():
                 continue
 
-            for md_file in collection_dir.glob('*.md'):
+            for md_file in sorted(collection_dir.glob('*.md')):
                 post_data = self.parse_markdown_file(md_file)
 
                 if post_data is None:
@@ -747,6 +787,60 @@ class SiteBuilder:
                 key=lambda x: x.get('date', ''),
                 reverse=True
             )
+
+    def collect_tags(self) -> None:
+        """Check every post's tags against the vocabulary and list the posts under each tag"""
+        min_posts = self.config.get('tag_min_posts', DEFAULT_TAG_MIN_POSTS)
+        self.tags = {}
+        for slug, info in (self.config.get('tags') or {}).items():
+            info = info or {}
+            self.tags[slug] = {
+                'slug': slug,
+                'title': info.get('title', slug),
+                'description': info.get('description', ''),
+                'url': f"{DIR_TAGS}/{slug}/",
+                'md_url': f"{DIR_TAGS}/{slug}.md",
+                'feed_url': f"{DIR_TAGS}/{slug}/{FILE_FEED}",
+                'posts': [],
+            }
+
+        for post in self.get_all_posts():
+            for slug in post['tags']:
+                if slug not in self.tags:
+                    self.warn(MESSAGES['unknown_tag'].format(post['file_path'], slug))
+            post['tags'] = [slug for slug in post['tags'] if slug in self.tags]
+            post['tag_titles'] = [self.tags[slug]['title'] for slug in post['tags']]
+            for slug in post['tags']:
+                self.tags[slug]['posts'].append(post)
+
+        for tag in self.tags.values():
+            tag['has_page'] = len(tag['posts']) >= min_posts
+            tag['lastmod'] = max((str(post.get('updated') or post['date']) for post in tag['posts']), default='')
+
+    def collect_related(self) -> None:
+        """Give every tagged post its related posts: most shared tags first, then its own section, newest first"""
+        settings = self.config.get('related') or {}
+        low, high = settings.get('min', 2), settings.get('max', 5)
+        all_posts = self.get_all_posts()
+
+        for post in all_posts:
+            post['related'] = []
+            if high <= 0 or not post['tags']:
+                continue
+            tags = set(post['tags'])
+            shared = [(len(tags & set(other['tags'])), rank, other) for rank, other in enumerate(all_posts) if other is not post]
+            picked = [other for count, _, other in sorted(shared, key=lambda item: (-item[0], item[1])) if count]
+            if settings.get('fallback') == 'section':
+                seen = {id(other) for other in picked}
+                picked += [other for other in self.posts[post['collection']] if other is not post and id(other) not in seen]
+            picked = picked[:high]
+            if len(picked) >= low:
+                post['related'] = picked
+
+    @property
+    def tag_pages(self) -> List[Dict]:
+        """Tags with enough posts for a page of their own, in vocabulary order"""
+        return [tag for tag in self.tags.values() if tag['has_page']]
 
     def collect_pages(self) -> None:
         """Collect all pages from sections directory"""
@@ -826,6 +920,8 @@ class SiteBuilder:
                 rendered = self._render_category_include(page_data)
             elif directive_type == 'archive':
                 rendered = self._render_archive_include()
+            elif directive_type == 'tag' and page_data.get('tag'):
+                rendered = self.env.get_template(TEMPLATE_TAG).render(tag=page_data['tag'], intro=page_data.get('tag_intro', ''))
             elif directive_type.startswith('example:'):
                 example_id = directive_type.split(':')[1]
                 rendered = f'<div class="example-viewer" data-example-id="{example_id}"></div>'
@@ -924,6 +1020,7 @@ class SiteBuilder:
                 'datePublished': str(page_data['date']),
                 **({'dateModified': str(page_data['updated'])} if page_data.get('updated') else {}),
                 'articleSection': page_data['collection'],
+                **({'keywords': page_data['tag_titles']} if page_data.get('tag_titles') else {}),
                 'publisher': {
                     '@type': 'Organization',
                     'name': meta['author'],
@@ -960,6 +1057,7 @@ class SiteBuilder:
             'site': self.config,
             'posts': self.posts,
             'pages': self.pages,
+            'tags': self.tags,
             'all_posts': self.get_all_posts()[:self.config.get('post_limit', DEFAULT_POST_LIMIT)],
             'use_base_tag': True,
             'base_url': self.base_url,
@@ -1004,19 +1102,20 @@ class SiteBuilder:
             f.write(html)
 
     def generate_feed(self) -> None:
-        """Generate RSS feed"""
+        """Generate the RSS feed, and one per tag page"""
         template = self.env.get_template(FILE_FEED)
+        now = datetime.now()
 
-        context = {
-            'site': self.config,
-            'posts': self.get_all_posts()[:FEED_POST_LIMIT],
-            'now': datetime.now()
-        }
-
-        feed_xml = template.render(**context)
-
+        feed_xml = template.render(site=self.config, posts=self.get_all_posts()[:FEED_POST_LIMIT], tags=self.tags, now=now)
         with open(self.output_dir / FILE_FEED, 'w', encoding='utf-8') as f:
             f.write(feed_xml)
+
+        for tag in self.tag_pages:
+            feed_xml = template.render(site=self.config, posts=tag['posts'][:FEED_POST_LIMIT], tags=self.tags, tag=tag, now=now)
+            output_file = self.output_dir / tag['feed_url']
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write(feed_xml)
 
     def generate_search_index(self) -> None:
         """Generate search.json for client-side search"""
@@ -1048,6 +1147,8 @@ class SiteBuilder:
             'base_url': self.base_url,
             'page': page_data,
             'posts': self.posts,
+            'tag': page_data.get('tag'),
+            'intro': page_data.get('tag_intro', ''),
         }
 
         for placeholder, directive in include_directives.items():
@@ -1077,6 +1178,24 @@ class SiteBuilder:
             }
             for page in self.pages
         ]
+        if self.tag_pages:
+            entries.append({
+                'title': 'Tags',
+                'url': f"{DIR_TAGS}/",
+                'md_url': f"{DIR_TAGS}.md",
+                'section': '',
+                'lastmod': max(tag['lastmod'] for tag in self.tags.values()),
+            })
+            entries += [
+                {
+                    'title': tag['title'],
+                    'url': tag['url'],
+                    'md_url': tag['md_url'],
+                    'section': '',
+                    'lastmod': tag['lastmod'],
+                }
+                for tag in self.tag_pages
+            ]
         entries += [
             {
                 'title': post['title'],
@@ -1089,13 +1208,24 @@ class SiteBuilder:
         ]
         return entries
 
-    def render_sitemap_page(self, entries: List[Dict]) -> None:
-        """Render sitemap/ as a page in the site layout"""
-        page_data = {
-            'content': self.env.get_template(FILE_SITEMAP_HTML).render(entries=entries),
+    def generated_page(self, title: str, description: str, url: str, md_url: str, content: str) -> Dict:
+        """Page data for a page the build writes itself, with no Markdown source
+
+        Args:
+            title: Page title
+            description: Meta description
+            url: Page URL relative to the site root
+            md_url: URL of its Markdown version
+            content: Rendered HTML body
+
+        Returns:
+            Page data dictionary
+        """
+        return {
+            'content': content,
             'markdown': '',
-            'title': 'Sitemap',
-            'description': f"Every page and post on {self.config['meta']['title']}, with its last modification date",
+            'title': title,
+            'description': description,
             'date': '',
             'updated': '',
             'comments': False,
@@ -1104,11 +1234,80 @@ class SiteBuilder:
             'toc': False,
             'banner': False,
             'sidebar': False,
-            'url': 'sitemap/',
-            'md_url': FILE_SITEMAP_MD,
+            'url': url,
+            'md_url': md_url,
             'include_directives': {},
         }
+
+    def render_sitemap_page(self, entries: List[Dict]) -> None:
+        """Render sitemap/ as a page in the site layout"""
+        page_data = self.generated_page(
+            'Sitemap',
+            f"Every page and post on {self.config['meta']['title']}, with its last modification date",
+            'sitemap/',
+            FILE_SITEMAP_MD,
+            self.env.get_template(FILE_SITEMAP_HTML).render(entries=entries),
+        )
         self.render_page(page_data, 'sitemap')
+
+    def tag_page_data(self, tag: Dict) -> Optional[Dict]:
+        """Page data for a tag's page, from themes/sections/tags/<tag>.md when it exists
+
+        Args:
+            tag: Tag dictionary from collect_tags
+
+        Returns:
+            Page data dictionary or None on error
+        """
+        page_file = self.theme_dir / DIR_SECTIONS / DIR_TAGS / f"{tag['slug']}.md"
+        source = None
+        if not page_file.exists():
+            source = f"---\n{yaml.safe_dump({'title': tag['title']}, allow_unicode=True)}---\n{{% include {TEMPLATE_TAG} %}}\n"
+
+        page_data = self.parse_markdown_file(page_file, is_post=False, source=source)
+        if page_data is None:
+            return None
+
+        meta = frontmatter.loads(source) if source is not None else frontmatter.load(page_file)
+        page_data.update({
+            'title': page_data['title'] or tag['title'],
+            'description': meta.get('description') or tag['description'] or extract_description(page_data['content'])
+                           or f"Posts tagged {tag['title']} on {self.config['meta']['title']}",
+            'url': tag['url'],
+            'md_url': tag['md_url'],
+            'feed_url': tag['feed_url'],
+            'tag': tag,
+            'tag_intro': tag['description'] if source is not None else '',
+        })
+        return page_data
+
+    def render_tag_pages(self) -> None:
+        """Render tags/, and a page with its Markdown version for every tag with enough posts"""
+        if not self.tag_pages:
+            return
+
+        site_title = self.config['meta']['title']
+        used = [tag for tag in self.tags.values() if tag['posts']]
+        context = {'site': self.config, 'base_url': self.base_url}
+
+        index = self.generated_page(
+            'Tags',
+            f"Every tag on {site_title}, with its number of posts",
+            f"{DIR_TAGS}/",
+            f"{DIR_TAGS}.md",
+            self.env.get_template(TEMPLATE_TAGS).render(tags=used, **context),
+        )
+        self.render_page(index, DIR_TAGS)
+        with open(self.output_dir / index['md_url'], 'w', encoding='utf-8') as f:
+            f.write(self.env.get_template(TEMPLATE_TAGS_MD).render(tags=used, **context))
+
+        for tag in self.tag_pages:
+            page_data = self.tag_page_data(tag)
+            if page_data is None:
+                continue
+            self.render_page(page_data, normalize_url_path(tag['url']))
+            with open(self.output_dir / tag['md_url'], 'w', encoding='utf-8') as f:
+                f.write(self.render_page_markdown(page_data))
 
     def generate_discovery_files(self) -> None:
         """Generate sitemap, llms.txt, llms-full.txt and Markdown versions of posts and pages"""
@@ -1118,6 +1317,7 @@ class SiteBuilder:
             'posts': self.posts,
             'all_posts': self.get_all_posts(),
             'pages': self.pages,
+            'tag_pages': self.tag_pages,
         }
         context['entries'] = self.sitemap_entries()
         context['newest'] = max((entry['lastmod'] for entry in context['entries']), default='')
@@ -1222,9 +1422,9 @@ class SiteBuilder:
         """
         return [
             ("Cleaning output directory", self.clean_output_dir),
-            ("Collecting posts and pages", lambda: (self.collect_posts(), self.collect_pages(), self.annotate_pages())),
+            ("Collecting posts and pages", lambda: (self.collect_posts(), self.collect_tags(), self.collect_related(), self.collect_pages(), self.annotate_pages())),
             ("Rendering posts", self.render_posts),
-            ("Rendering pages", self.render_pages),
+            ("Rendering pages", lambda: (self.render_pages(), self.render_tag_pages())),
             ("Generating feed & search", lambda: (self.generate_feed(), self.generate_search_index())),
             ("Writing discovery files", self.generate_discovery_files),
             ("Copying static assets", self.copy_static_files),

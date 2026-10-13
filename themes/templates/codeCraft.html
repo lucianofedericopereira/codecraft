@@ -24,15 +24,19 @@
         <h1{% if page.banner %} class="banner" {% endif %}>{{ page.title }}</h1>
         <div id="index" aria-hidden="true"><div id="reading-time"></div><div id="chapters"></div></div>
         {{ page.content|safe }}
+        {% if page.collection and page.tags %}<p class="post-tags">{% for slug in page.tags %}{% set tag = tags[slug] %}{% if tag.has_page %}<a class="section-tag notranslate" href="{{ tag.url }}">{{ tag.title }}</a>{% else %}<span class="section-tag notranslate">{{ tag.title }}</span>{% endif %}{% endfor %}</p>{% endif %}
+        {% if page.related %}<section class="related-posts">
+            <h3>Related</h3>
+            {% for item in page.related %}<p class="list"><a href="{{ item.url }}"><span>{{ item.date|date_full }}</span> {{ item.title }}</a></p>{% endfor %}
+        </section>{% endif %}
         {% if page.comments and site.comments.repo %}<div id="comments">
             <h3>Comments</h3>
             <div id="comments-utteranc" class="notranslate"></div>
         </div>{% endif %}
     </main>
     <script type="module" async>
-        import lunr from '{{ asset_urls.lunr }}';
         import { codeCraft } from '{{ js }}';
-        codeCraft.init(lunr);
+        codeCraft.init();
     </script>{% if page.codepen %}<script async src="https://cpwebassets.codepen.io/assets/embed/ei.js"></script>{% endif %}
 </body>
 </html>

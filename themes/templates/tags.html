@@ -1,0 +1,2 @@
+{% for tag in tags %}<p class="list">{% if tag.has_page %}<a href="{{ tag.url }}">{{ tag.title }} <span>{{ tag.posts|length }}</span></a>{% else %}{{ tag.title }} <span>{{ tag.posts|length }}</span>{% endif %}</p>
+{% endfor %}

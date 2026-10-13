@@ -6,8 +6,6 @@ const CONFIG = {
     LANG_CHECK_TIMEOUT: 5000,
     LANG_CHECK_INTERVAL: 100,
     SEARCH_MIN_LENGTH: 2,
-    SEARCH_BATCH_SIZE: 10,
-    SEARCH_BATCH_DELAY: 100,
     COPY_FEEDBACK_DURATION: 4000,
     ASIDE_TRANSITION_DELAY: 10,
     CLOCK_INTERVAL: 1000,
@@ -134,8 +132,6 @@ const initializeTranslate = () => {
     $('.goog-logo-link')?.setAttribute('rel', 'noopener');
 
     var googleCombo = $('select.goog-te-combo');
-    var translateDropdown = $('#translate-dropdown');
-    var menu = $('#menu');
     var isMobile = window.innerWidth < CONFIG.DESKTOP_WIDTH;
 
     if (!googleCombo) return;
@@ -168,8 +164,8 @@ const initializeTranslate = () => {
 
             // Auto-close menus
             setTimeout(() => {
-                translateDropdown.checked = false;
-                if (isMobile) menu.checked = false;
+                toggles.translate?.setOpen(false);
+                if (isMobile) toggles.menu?.setOpen(false);
             }, CONFIG.LANG_SWITCH_DELAY);
         });
     });
@@ -224,6 +220,87 @@ const initializeMermaid = () => {
         }).catch(error => console.error(error));
     `;
     document.body.appendChild(script);
+};
+
+// Paper texture: fibre and grain tiles drawn from a seed, as configured under texture
+const TEXTURE_DEFAULTS = {
+    seed: 42, ink: '#453E35', light: '#FFFFF8',
+    fibres: 320, fibre_size: 160, fibre_scale: 1120, fibre_opacity: 0.18,
+    grain_size: 192, grain_alpha: 18, grain_opacity: 0.35
+};
+
+const textureRng = seed => {
+    const INV_32 = 2.3283064365386963e-10;
+    return () => {
+        seed = (seed * 1664525 + 1013904223) >>> 0;
+        return seed * INV_32;
+    };
+};
+
+const hexToRgb = hex => {
+    const h = hex.replace('#', '');
+    const full = h.length === 3 ? [...h].map(c => c + c).join('') : h;
+    return [0, 2, 4].map(i => parseInt(full.slice(i, i + 2), 16));
+};
+
+const makeFibreTile = t => {
+    const S = t.fibre_size, r = textureRng(t.seed);
+    const ink = hexToRgb(t.ink).join(','), light = hexToRgb(t.light).join(',');
+    const c = document.createElement('canvas');
+    c.width = c.height = S;
+    const x = c.getContext('2d');
+    x.lineCap = 'round';
+    for (let i = 0; i < t.fibres; i++) {
+        const px = r() * S, py = r() * S;
+        const ang = r() * Math.PI * 2, len = 4 + r() * 20;
+        const bend = (r() - .5) * 7;
+        const tone = r() < .5 ? light : ink;
+        const a = (0.01 + r() * 0.02).toFixed(3);
+        x.strokeStyle = `rgba(${tone},${a})`;
+        x.lineWidth = 0.35 + r() * 0.8;
+        const dx = Math.cos(ang) * len, dy = Math.sin(ang) * len;
+        for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) {
+            x.beginPath();
+            x.moveTo(px + ox, py + oy);
+            x.quadraticCurveTo(px + ox + dx / 2 - dy / S * bend, py + oy + dy / 2 + dx / S * bend, px + ox + dx, py + oy + dy);
+            x.stroke();
+        }
+    }
+    return c;
+};
+
+const makeGrainTile = t => {
+    const S = t.grain_size, r = textureRng(t.seed * 7 + 1);
+    const ink = hexToRgb(t.ink), light = hexToRgb(t.light);
+    const c = document.createElement('canvas');
+    c.width = c.height = S;
+    const x = c.getContext('2d');
+    const img = x.createImageData(S, S), d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+        const [red, green, blue] = r() < .5 ? ink : light;
+        d[i] = red; d[i + 1] = green; d[i + 2] = blue;
+        d[i + 3] = Math.floor(r() * r() * t.grain_alpha);
+    }
+    x.putImageData(img, 0, 0);
+    return c;
+};
+
+const initializeTexture = () => {
+    const config = parseMetaConfig('texture');
+    if (!config) return;
+
+    const t = { ...TEXTURE_DEFAULTS };
+    Object.entries(config).forEach(([key, value]) => {
+        if (key in t) t[key] = typeof t[key] === 'number' ? Number(value) : value;
+    });
+
+    const style = document.documentElement.style;
+    style.setProperty('--fibre-url', `url(${makeFibreTile(t).toDataURL()})`);
+    style.setProperty('--fibre-scale', `${t.fibre_scale}px`);
+    style.setProperty('--fibre-opacity', t.fibre_opacity);
+    style.setProperty('--grain-url', `url(${makeGrainTile(t).toDataURL()})`);
+    style.setProperty('--grain-size', `${t.grain_size}px`);
+    style.setProperty('--grain-opacity', t.grain_opacity);
 };
 
 // Table of Contents
@@ -356,195 +433,220 @@ const setupClipboard = () => {
     });
 };
 
-// Build search index from documents
-const buildSearchIndex = (lunrInstance, docs) => {
-    lunrInstance.tokenizer.separator = /[\s/]+/;
-    return lunrInstance(function() {
-        this.ref('id');
-        this.field('title', { boost: 200 });
-        this.field('content', { boost: 2 });
-        this.metadataWhitelist = ['position'];
-
-        Object.keys(docs).forEach(key => {
-            this.add({
-                id: key,
-                title: docs[key].title,
-                content: docs[key].content
-            });
+// Search index, fetched on first use and shared by every query after it
+let searchDocsPromise = null;
+const fetchSearchDocs = () => {
+    searchDocsPromise ??= fetch('search.json')
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        })
+        .catch(error => {
+            console.error('Search index failed to load:', error);
+            searchDocsPromise = null;
+            return [];
         });
-    });
+    return searchDocsPromise;
 };
 
-// Perform search with fallback to fuzzy search
-const performSearch = (index, lunrInstance, input) => {
-    // Primary search
-    let results = index.query(query => {
-        const tokens = lunrInstance.tokenizer(input);
-        query.term(tokens, { boost: 10 });
-        query.term(tokens, { wildcard: lunrInstance.Query.wildcard.TRAILING });
+// Title matches first, then body matches, each in index order (newest first)
+const findMatches = (docs, query) => {
+    const inTitle = [];
+    const inContent = [];
+    docs.forEach(doc => {
+        if (doc.title.toLowerCase().includes(query)) inTitle.push(doc);
+        else if (doc.content.toLowerCase().includes(query)) inContent.push(doc);
     });
+    return [...inTitle, ...inContent];
+};
 
-    // Fuzzy search fallback
-    if (!results.length && input.length > CONFIG.SEARCH_MIN_LENGTH) {
-        const tokens = lunrInstance.tokenizer(input).filter(token => token.str.length < 20);
-        if (tokens.length) {
-            results = index.query(query => {
-                query.term(tokens, { editDistance: Math.round(Math.sqrt(input.length / 2 - 1)) });
-            });
-        }
+// Text around the first match, or the opening when only the title matched
+const searchExcerpt = (content, query) => {
+    const start = Math.max(0, content.toLowerCase().indexOf(query) - CONFIG.SEARCH_PREVIEW_LENGTH / 2);
+    const end = start + CONFIG.SEARCH_PREVIEW_LENGTH;
+    return `${start > 0 ? '…' : ''}${content.slice(start, end).trim()}${end < content.length ? '…' : ''}`;
+};
+
+// Append text with its first match of query wrapped in a highlight span
+const appendHighlighted = (container, text, query) => {
+    const idx = text.toLowerCase().indexOf(query);
+    if (idx === -1) {
+        container.append(text);
+        return;
+    }
+    const mark = document.createElement('span');
+    mark.className = 'search-result-highlight';
+    mark.textContent = text.slice(idx, idx + query.length);
+    container.append(text.slice(0, idx), mark, text.slice(idx + query.length));
+};
+
+// Render search results
+const renderSearchResults = (searchInput, searchResults, docs, query) => {
+    searchResults.replaceChildren();
+
+    if (docs.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'search-no-result';
+        empty.textContent = 'No results found';
+        searchResults.appendChild(empty);
+        return;
     }
 
-    return results;
-};
+    const list = document.createElement('ul');
+    list.className = 'search-results-list';
+    list.setAttribute('role', 'listbox');
 
-// Render search results in batches
-const renderSearchResults = (list, results, start, currentSearchIndex, searchIndexRef, docs, searchInput, searchResults) => {
-    if (currentSearchIndex !== searchIndexRef.current) return;
-
-    const end = Math.min(start + CONFIG.SEARCH_BATCH_SIZE, results.length);
-    for (let i = start; i < end; i++) {
-        const result = results[i];
-        const doc = docs[result.ref];
-
+    docs.forEach((doc, i) => {
         const item = document.createElement('li');
-        item.classList.add('search-results-list-item');
+        item.className = 'search-results-list-item';
+        item.setAttribute('role', 'none');
 
         const link = document.createElement('a');
-        link.classList.add('search-result');
+        link.className = 'search-result';
+        link.id = `search-option-${i}`;
         link.href = doc.url;
+        link.setAttribute('role', 'option');
+        link.setAttribute('aria-selected', 'false');
         link.addEventListener('click', event => {
             event.preventDefault();
             searchInput.value = '';
-            searchResults.innerHTML = '';
+            searchResults.replaceChildren();
             setTimeout(() => window.location.href = link.href, 10);
         });
 
         const title = document.createElement('div');
-        title.classList.add('search-result-title');
-        title.textContent = doc.title;
+        title.className = 'search-result-title';
+        appendHighlighted(title, doc.title, query);
         link.appendChild(title);
 
         if (doc.content) {
             const preview = document.createElement('div');
-            preview.classList.add('search-result-previews');
-            const previewText = doc.content.slice(0, CONFIG.SEARCH_PREVIEW_LENGTH);
+            preview.className = 'search-result-previews';
             const previewContent = document.createElement('div');
-            previewContent.classList.add('search-result-preview');
-            previewContent.textContent = `${previewText}…`;
+            previewContent.className = 'search-result-preview';
+            appendHighlighted(previewContent, searchExcerpt(doc.content, query), query);
             preview.appendChild(previewContent);
             link.appendChild(preview);
         }
 
         item.appendChild(link);
         list.appendChild(item);
-    }
+    });
 
-    if (end < results.length) {
-        setTimeout(
-            () => renderSearchResults(list, results, end, currentSearchIndex, searchIndexRef, docs, searchInput, searchResults),
-            CONFIG.SEARCH_BATCH_DELAY
-        );
-    }
+    searchResults.appendChild(list);
 };
 
 // Setup keyboard shortcuts for search
-const setupSearchKeyboardShortcuts = (searchInput, menu, hideSearchFn) => {
+const setupSearchKeyboardShortcuts = (searchInput, hideSearchFn) => {
+    let openedMenu = false;
+    const isTyping = el => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
     document.addEventListener('keydown', e => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        const el = document.activeElement;
+        const altS = e.altKey && !e.ctrlKey && !e.metaKey && e.code === 'KeyS' && isTyping(el) && el !== searchInput;
+        const bareS = e.key === 's' && !e.altKey && !e.ctrlKey && !e.metaKey && !isTyping(el);
+        if (altS || bareS) {
             e.preventDefault();
-            menu.checked = true;
+            if (toggles.menu && !toggles.menu.isOpen()) {
+                toggles.menu.setOpen(true);
+                openedMenu = true;
+            }
             searchInput.focus();
         }
         if (e.key === 'Escape') {
             hideSearchFn();
             searchInput.blur();
-            menu.checked = false;
+            if (openedMenu) toggles.menu.setOpen(false);
+            openedMenu = false;
         }
     });
 };
 
 // Search functionality
-const initializeSearch = async lunrInstance => {
+const initializeSearch = () => {
     const searchInput = $('#search-input');
     const searchResults = $('#search-results');
-    const metaTag = $('meta[name="search"]');
-    const menu = $('#menu');
 
-    if (!searchInput || !searchResults || !metaTag?.content) return;
+    if (!searchInput || !searchResults) return;
 
-    let currentInput = '';
-    const searchIndexRef = { current: 0 };
+    let activeIndex = -1;
+    const options = () => Array.from(searchResults.querySelectorAll('a.search-result'));
 
-    try {
-        const response = await fetch(metaTag.content);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const setActive = index => {
+        const all = options();
+        all[activeIndex]?.classList.remove('active');
+        all[activeIndex]?.setAttribute('aria-selected', 'false');
+        activeIndex = index;
+        const next = all[activeIndex];
+        if (!next) return;
+        next.classList.add('active');
+        next.setAttribute('aria-selected', 'true');
+        searchInput.setAttribute('aria-activedescendant', next.id);
+        next.scrollIntoView({ block: 'nearest' });
+    };
 
-        const docs = await response.json();
-        const index = buildSearchIndex(lunrInstance, docs);
+    const clearActive = () => {
+        activeIndex = -1;
+        searchInput.removeAttribute('aria-activedescendant');
+    };
 
-        const showSearch = () => document.documentElement.classList.add('search-active');
-        const hideSearch = () => {
-            document.documentElement.classList.remove('search-active');
-            searchInput.value = '';
-            searchResults.innerHTML = '';
+    const showSearch = () => document.documentElement.classList.add('search-active');
+    const hideSearch = () => {
+        document.documentElement.classList.remove('search-active');
+        searchInput.value = '';
+        clearActive();
+        searchResults.replaceChildren();
+        searchResults.style.display = 'none';
+    };
+
+    setupSearchKeyboardShortcuts(searchInput, hideSearch);
+
+    searchInput.addEventListener('focus', fetchSearchDocs);
+
+    // Search input handler
+    searchInput.addEventListener('input', async () => {
+        const query = searchInput.value.trim().toLowerCase();
+
+        if (query.length === 0) {
+            hideSearch();
+            return;
+        }
+
+        if (query.length < CONFIG.SEARCH_MIN_LENGTH) {
+            clearActive();
+            searchResults.replaceChildren();
             searchResults.style.display = 'none';
-        };
+            return;
+        }
 
-        setupSearchKeyboardShortcuts(searchInput, menu, hideSearch);
+        const docs = await fetchSearchDocs();
+        // A slow first fetch must not overwrite a newer query
+        if (searchInput.value.trim().toLowerCase() !== query) return;
 
-        // Search input handler
-        searchInput.addEventListener('input', () => {
-            const input = searchInput.value.trim();
+        clearActive();
+        renderSearchResults(searchInput, searchResults, findMatches(docs, query), query);
+        searchResults.style.display = 'block';
+        showSearch();
+    });
 
-            if (input.length === 0) {
-                hideSearch();
-                return;
-            }
+    // Arrow keys move through results, Enter opens the active one
+    searchInput.addEventListener('keydown', event => {
+        const count = options().length;
+        if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && count) {
+            event.preventDefault();
+            const delta = event.key === 'ArrowDown' ? 1 : -1;
+            setActive(activeIndex === -1 ? (delta > 0 ? 0 : count - 1) : (activeIndex + delta + count) % count);
+        } else if (event.key === 'Enter' && activeIndex !== -1) {
+            event.preventDefault();
+            options()[activeIndex]?.click();
+        }
+    });
 
-            if (input.length < CONFIG.SEARCH_MIN_LENGTH) {
-                searchResults.innerHTML = '';
-                searchResults.style.display = 'none';
-                return;
-            }
-
-            if (input === currentInput) return;
-
-            currentInput = input;
-            searchIndexRef.current++;
-            searchResults.innerHTML = '';
-            searchResults.style.display = 'block';
-            showSearch();
-
-            const results = performSearch(index, lunrInstance, input);
-
-            if (results.length === 0) {
-                searchResults.innerHTML = '<div class="search-no-result">No results found</div>';
-            } else {
-                const resultsList = document.createElement('ul');
-                resultsList.classList.add('search-results-list');
-                searchResults.appendChild(resultsList);
-                renderSearchResults(resultsList, results, 0, searchIndexRef.current, searchIndexRef, docs, searchInput, searchResults);
-            }
-        });
-
-        // Close on blur
-        searchInput.addEventListener('blur', event => {
-            if (!searchResults.contains(event.relatedTarget)) {
-                hideSearch();
-            }
-        });
-
-        // Watch for visibility changes
-        const observer = new MutationObserver(() => {
-            if (window.getComputedStyle(searchInput).display === 'none') {
-                hideSearch();
-            }
-        });
-        observer.observe(searchInput, { attributes: true, attributeFilter: ['style'] });
-
-    } catch (error) {
-        console.error('Search initialization failed:', error);
-    }
+    // Close on blur
+    searchInput.addEventListener('blur', event => {
+        if (!searchResults.contains(event.relatedTarget)) {
+            hideSearch();
+        }
+    });
 };
 
 // Clickable elements
@@ -620,6 +722,9 @@ const setupUIEnhancements = () => {
 const setupPJAX = () => {
     const contentSelector = 'main';
     let isNavigating = false;
+
+    // Give the entry page a state so Back to it is not skipped by popstate
+    history.replaceState({ path: location.href }, '', location.href);
 
     // Intercept link clicks
     document.addEventListener('click', async (e) => {
@@ -764,15 +869,21 @@ const setupPJAX = () => {
     `);
 };
 
+// Toggle pairs by name, filled by setupToggles
+const toggles = {};
+
 // Create a toggle pair with ARIA attributes
 const createToggle = (toggleEl, targetEl) => {
-    if (!toggleEl || !targetEl) return;
+    if (!toggleEl || !targetEl) return null;
 
-    toggleEl.addEventListener('click', () => {
-        const isExpanded = toggleEl.getAttribute('aria-expanded') === 'true';
-        toggleEl.setAttribute('aria-expanded', !isExpanded);
-        targetEl.setAttribute('aria-hidden', isExpanded);
-    });
+    const isOpen = () => toggleEl.getAttribute('aria-expanded') === 'true';
+    const setOpen = open => {
+        toggleEl.setAttribute('aria-expanded', open);
+        targetEl.setAttribute('aria-hidden', !open);
+    };
+
+    toggleEl.addEventListener('click', () => setOpen(!isOpen()));
+    return { isOpen, setOpen };
 };
 
 // Toggle functionality for buttons
@@ -819,14 +930,14 @@ const setupToggles = () => {
             menu.classList.add('transitions-enabled');
         }, 100);
 
-        createToggle(menuToggle, menu);
+        toggles.menu = createToggle(menuToggle, menu);
     }
 
     // TOC toggle
-    createToggle($('#toc-toggle'), $('#index'));
+    toggles.toc = createToggle($('#toc-toggle'), $('#index'));
 
     // Translate dropdown toggle
-    createToggle($('#translate-toggle'), $('#translate-dropdown'));
+    toggles.translate = createToggle($('#translate-toggle'), $('#translate-dropdown'));
 };
 
 // Example Viewer functionality
@@ -1206,7 +1317,8 @@ const initializeExamples = async () => {
 
 // Main initialization
 export const codeCraft = {
-    init: async function(lunrInstance) {
+    init: async function() {
+        initializeTexture();
         setupPJAX();
         setupToggles();
         setupUIEnhancements();
@@ -1214,8 +1326,8 @@ export const codeCraft = {
         createTOC();
         setupClipboard();
         setupClickableElements();
+        initializeSearch();
         await initializeExamples();
-        await initializeSearch(lunrInstance);
         loadComments();
         createObserver(removeFontTags);
         defineCodePenElement();

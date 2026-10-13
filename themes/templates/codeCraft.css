@@ -141,10 +141,30 @@ main {
     main {
         width: 100%;
         position: relative;
-        background-image:url(codeCraft.webp);
-        background-repeat:repeat;
-        background-size:200px 200px;
-        mix-blend-mode:multiply
+        isolation: isolate;
+    }
+
+    /* Paper texture layers, filled by codeCraft.js from the texture config */
+    main::before,
+    main::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        background-repeat: repeat;
+    }
+
+    main::before {
+        background-image: var(--fibre-url, none);
+        background-size: var(--fibre-scale) var(--fibre-scale);
+        opacity: var(--fibre-opacity);
+    }
+
+    main::after {
+        background-image: var(--grain-url, none);
+        background-size: var(--grain-size) var(--grain-size);
+        opacity: var(--grain-opacity);
     }
 
     main a {
@@ -170,14 +190,14 @@ main {
         z-index: 15;
     }
 
-    main a[href]:not([href^="#"]):not(main footer a[href]),
-    main a[href]:not([href^="#"]):visited:not(main footer a[href]) {
+    main a[href]:not([href^="#"]):not(main footer a[href], a.section-tag),
+    main a[href]:not([href^="#"]):visited:not(main footer a[href], a.section-tag) {
         text-decoration: none;
         color: var(--ce);
     }
-    
-    main a[href]:not([href^="#"]):hover:not(main footer a[href]),
-    main a[href]:not([href^="#"]):visited:hover:not(main footer a[href]) {
+
+    main a[href]:not([href^="#"]):hover:not(main footer a[href], a.section-tag),
+    main a[href]:not([href^="#"]):visited:hover:not(main footer a[href], a.section-tag) {
         text-decoration: none;
         color: var(--r0);
     }
@@ -1033,6 +1053,19 @@ main ol li {
         background-color: var(--r0);
         color: var(--c7);
     }
+
+    a.section-tag {
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .post-tags {
+        margin-top: 2rem;
+    }
+
+    .post-tags .section-tag {
+        margin: 0 .5ch 0 0;
+    }
     
     .date-tag {
         color: var(--cd);
@@ -1151,6 +1184,10 @@ main ol li {
             border-right: 2px solid var(--c4);
             color: var(--c3);
             transition: 100ms color;
+        }
+
+        .related-posts .list span {
+            width: 14ch;
         }
 
         .list:hover {

@@ -1,6 +1,9 @@
 # Build output
 build/
 
+# Local tests
+tests/
+
 # Python
 __pycache__/
 *.py[cod]
