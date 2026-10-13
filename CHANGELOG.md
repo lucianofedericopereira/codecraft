@@ -13,9 +13,24 @@ Every release, as it ships.
 - Added an outline to the search box on hover and while it has focus, drawn inside its edge so nothing moves
 - Changed keyboard focus to drop the browser's own focus ring, which took the system theme's colour: links darken with a faux bold, table of contents entries take the hover colour, pills, chips and the code copy button show their hover look, toggles darken, and search results get an outline drawn inside the entry; nothing moves on focus
 - Changed the code copy button to rounded corners
+- Fixed the printed page header, meant to show the author and license from `meta` in the config, coming out empty: it read attributes no element carried
+- Changed the printed tagline to sit 1.6px higher, level with the title
+- Added a `Tags:` label and a `#` before each tag on printed posts
+- Changed printed text to a type scale in points: 22 for the title, 16 and 13 for section headings, 11 for body text, 10 for tables, 9 for code and 8 for notes, with code in the code font
+- Fixed level-three headings missing from printed posts: the rule meant to hide the Related heading hid every one
+- Changed printed code blocks to wrap long lines instead of cutting them off at the page edge, and to break across pages with at least four lines on each side
+- Changed printed paragraphs and list items to break across pages with at least three lines on each side, where whole paragraphs used to jump to the next page, and kept headings and a line introducing code with what follows
+- Fixed printed interactive examples leaving most of a page blank before them, and long lines in them dropping below their line number
+- Changed keyboard focus on sidebar links and languages to a faux bold, so the text no longer widens, and gave the Translate button the colour and faux bold of its hover look
+- Fixed the links in a closed menu, Translate list or table of contents taking Tab stops
+- Fixed the table of contents button doing nothing after moving to another page within the site
+- Fixed links in posts and lists, related posts among them, keeping their teal colour on keyboard focus: a more specific colour rule overrode the focus colour, so only the faux bold showed; they take the hover colour now
+- Added a keyboard focus cue to post entries: a teal border around the entry on the home page, in the space its transparent border already took, and the hover look on archive, section, tag and related rows
 - Changed the search results to leave room above the first entry, and stopped the results box itself taking a Tab stop
 - Fixed Back to the first page of a visit leaving the next page's content on screen
+- Changed the logo, and any other link to the page already shown, to do nothing instead of reloading it
 - Fixed the language menu, and the menu on narrow screens, staying open after a language is picked
+- Fixed picking English sending the English page through Google Translate: it now shows the original, untranslated page, and does nothing when the page is not translated
 - Fixed a jsDelivr outage stopping every script on the site, where only diagrams depend on it now
 - Fixed `search.json` escaping quotes by hand: it is written with Jinja's `tojson`, so a backslash or control character in a post can no longer break the index
 - Removed Lunr.js, `search_file` and `scripts.lunr` from the config, and the `search` meta tag

@@ -1368,8 +1368,14 @@ class SiteBuilder:
             font_data['weight_num'] = FONT_WEIGHT_MAP.get(weight_str, '400')
             fonts.append(font_data)
 
+        meta = self.config.get('meta', {})
+        print_header = str(meta.get('author', ''))
+        if meta.get('license'):
+            print_header += f" ({meta['license']})"
+        print_header = print_header.replace('\\', '\\\\').replace('"', '\\"')
+
         template = self.env.get_template(FILE_CSS_TEMPLATE)
-        return template.render(fonts=fonts, sections=self.config['sections'])
+        return template.render(fonts=fonts, sections=self.config['sections'], print_header=print_header)
 
     def generate_css(self) -> None:
         """Write the rendered CSS into the build"""

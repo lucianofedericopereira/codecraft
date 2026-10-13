@@ -122,8 +122,9 @@ const defineCodePenElement = () => {
 const initializeTranslate = () => {
     // IMPORTANT: This function is called by Google's script via window.translate
     // Do not modify the callback structure
+    const pageLanguage = 'en';
     new google.translate.TranslateElement({
-        pageLanguage: 'en',
+        pageLanguage,
         autoDisplay: false,
         layout: google.translate.TranslateElement.InlineLayout.VERTICAL
     }, 'translate');
@@ -142,8 +143,26 @@ const initializeTranslate = () => {
         element.dispatchEvent(event);
     };
 
+    // Back to the original: Google's own restore button, else drop its cookie and reload
+    const restoreOriginal = () => {
+        const html = document.documentElement;
+        if (!html.classList.contains('translated-ltr') && !html.classList.contains('translated-rtl')) return;
+        for (const frame of $$('iframe.skiptranslate, iframe.goog-te-banner-frame')) {
+            const restore = frame.contentDocument?.querySelector('[id$=".restore"]');
+            if (restore) {
+                restore.click();
+                return;
+            }
+        }
+        const expired = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+        document.cookie = expired;
+        document.cookie = `${expired}; domain=${location.hostname}`;
+        location.reload();
+    };
+
     // Debounced language change to prevent rapid switches
     const changeLanguage = debounce(lang => {
+        if (lang === pageLanguage) return restoreOriginal();
         googleCombo.value = lang;
         triggerEvent(googleCombo, 'change');
     }, CONFIG.DEBOUNCE_DELAY);
@@ -733,6 +752,15 @@ const setupPJAX = () => {
 
         const url = link.getAttribute('href');
 
+        // A link to the page already shown does nothing
+        if (url && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && link.target !== '_blank') {
+            const dest = new URL(link.href, location.href);
+            if (!dest.hash && dest.origin === location.origin && dest.pathname === location.pathname && dest.search === location.search) {
+                e.preventDefault();
+                return;
+            }
+        }
+
         // Only intercept internal links
         if (!url ||
             url.startsWith('http://') ||
@@ -783,6 +811,7 @@ const setupPJAX = () => {
                     });
 
                     // Re-initialize components for new content
+                    toggles.toc = createToggle($('#toc-toggle'), $('#index'));
                     createTOC();
                     setupClipboard();
                     setupClickableElements();
@@ -840,6 +869,7 @@ const setupPJAX = () => {
                     const newTitle = doc.querySelector('title');
                     if (newTitle) document.title = newTitle.textContent;
 
+                    toggles.toc = createToggle($('#toc-toggle'), $('#index'));
                     createTOC();
                     setupClipboard();
                     setupClickableElements();
@@ -872,7 +902,7 @@ const setupPJAX = () => {
 // Toggle pairs by name, filled by setupToggles
 const toggles = {};
 
-// Create a toggle pair with ARIA attributes
+// Create a toggle pair with ARIA attributes; inert keeps a closed target out of the Tab order
 const createToggle = (toggleEl, targetEl) => {
     if (!toggleEl || !targetEl) return null;
 
@@ -880,7 +910,9 @@ const createToggle = (toggleEl, targetEl) => {
     const setOpen = open => {
         toggleEl.setAttribute('aria-expanded', open);
         targetEl.setAttribute('aria-hidden', !open);
+        targetEl.inert = !open;
     };
+    setOpen(isOpen());
 
     toggleEl.addEventListener('click', () => setOpen(!isOpen()));
     return { isOpen, setOpen };
@@ -897,18 +929,10 @@ const setupToggles = () => {
     if (menuToggle && menu) {
         const isDesktop = () => window.innerWidth >= 1024; // 64rem = 1024px
 
-        // Set initial state based on screen size
-        const setInitialMenuState = () => {
-            if (isDesktop()) {
-                // Desktop: open by default
-                menu.setAttribute('aria-hidden', 'false');
-                menuToggle.setAttribute('aria-expanded', 'true');
-            } else {
-                // Mobile & Tablet: closed by default
-                menu.setAttribute('aria-hidden', 'true');
-                menuToggle.setAttribute('aria-expanded', 'false');
-            }
-        };
+        toggles.menu = createToggle(menuToggle, menu);
+
+        // Set initial state based on screen size: open on desktop, closed on mobile and tablet
+        const setInitialMenuState = () => toggles.menu.setOpen(isDesktop());
 
         setInitialMenuState();
 
@@ -929,8 +953,6 @@ const setupToggles = () => {
         setTimeout(() => {
             menu.classList.add('transitions-enabled');
         }, 100);
-
-        toggles.menu = createToggle(menuToggle, menu);
     }
 
     // TOC toggle
