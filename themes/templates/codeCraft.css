@@ -190,14 +190,14 @@ main {
         z-index: 15;
     }
 
-    main a[href]:not([href^="#"]):not(main footer a[href], a.section-tag),
-    main a[href]:not([href^="#"]):visited:not(main footer a[href], a.section-tag) {
+    main a[href]:not([href^="#"]):not(main footer a[href], a.section-tag, a.pill),
+    main a[href]:not([href^="#"]):visited:not(main footer a[href], a.section-tag, a.pill) {
         text-decoration: none;
         color: var(--ce);
     }
 
-    main a[href]:not([href^="#"]):hover:not(main footer a[href], a.section-tag),
-    main a[href]:not([href^="#"]):visited:hover:not(main footer a[href], a.section-tag) {
+    main a[href]:not([href^="#"]):hover:not(main footer a[href], a.section-tag, a.pill),
+    main a[href]:not([href^="#"]):visited:hover:not(main footer a[href], a.section-tag, a.pill) {
         text-decoration: none;
         color: var(--r0);
     }
@@ -1016,7 +1016,8 @@ main ol li {
         margin-right: 1ch;
     }
 
-    .controllers {
+    .controllers,
+    .tag-pills {
         margin-top: 2rem;
         gap: .5rem;
         display: flex;
@@ -1024,7 +1025,12 @@ main ol li {
         font-family: var(--font-body),var(--font-basic);
     }
 
-    .controllers label {
+    .tag-pills {
+        flex-wrap: wrap;
+    }
+
+    .controllers label,
+    .tag-pills .pill {
         font-size: 1.1rem;
         border: 2px solid var(--c4);
         cursor: pointer;
@@ -1036,8 +1042,24 @@ main ol li {
         line-height: 0;
     }
 
-    .controllers label:hover {
+    .controllers label:hover,
+    .tag-pills a.pill:hover {
         background-color: var(--cb);
+    }
+
+    .tag-pills .pill {
+        color: var(--c1);
+        cursor: default;
+    }
+
+    .tag-pills a.pill {
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .tag-pills .pill span {
+        color: var(--cd);
+        margin-left: .4ch;
     }
 
     .controllers label:has(input:checked) {
@@ -1180,7 +1202,12 @@ main ol li {
             gap: 1.5rem!important;
         }
 
-        .controllers label {
+        .tag-pills {
+            gap: 1.5rem;
+        }
+
+        .controllers label,
+        .tag-pills .pill {
             min-width: 10ch;
             border-radius: 4vh;
             padding: 1.1rem .8rem .9rem;
@@ -1208,6 +1235,7 @@ main ol li {
         .related-posts .list span {
             width: 14ch;
         }
+
 
         .list:hover {
             text-decoration: underline var(--c4);
