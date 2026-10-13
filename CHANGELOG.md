@@ -10,6 +10,7 @@ Every release, as it ships.
 - Added arrow keys and Enter to move through and open search results
 - Changed the search shortcut from Ctrl/Cmd+K, which browsers keep for their own search, to `s`, or Alt+S from inside another text field
 - Fixed the search shortcut on narrow screens focusing a search box hidden inside the closed menu
+- Added an outline to the search box on hover and while it has focus, drawn inside its edge so nothing moves
 - Fixed Back to the first page of a visit leaving the next page's content on screen
 - Fixed the language menu, and the menu on narrow screens, staying open after a language is picked
 - Fixed a jsDelivr outage stopping every script on the site, where only diagrams depend on it now
@@ -17,7 +18,7 @@ Every release, as it ships.
 - Removed Lunr.js, `search_file` and `scripts.lunr` from the config, and the `search` meta tag
 - Removed the jsDelivr preconnect from pages without a Mermaid diagram
 - Removed the unused `search_enabled` setting, and a search observer that never fired
-- Added tags: a `tags:` vocabulary in `themes/config.yaml` and a `tags:` list in a post's frontmatter, with a build warning naming the file for a tag the config doesn't declare
+- Added tags: a `tags:` list of names in `themes/config.yaml` (or a mapping, for a description per tag) and a `tags:` list in a post's frontmatter, matched in any case, with a build warning naming the file for a tag the config doesn't declare
 - Added tag chips under each post, linking to the tag's page once it has one
 - Added a page, a Markdown version and an RSS feed for every tag used by at least `tag_min_posts` posts (3 by default), and `tags/` listing every tag in use with its count
 - Added tag pages to `sitemap.xml`, `sitemap/`, `sitemap.md` and `llms.txt`

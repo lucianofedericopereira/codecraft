@@ -88,7 +88,7 @@ Anything you can set here can also have a default per folder, through `rules` in
 
 A post has one section and any number of tags. Sections decide the URL; tags cut across them, so a `code` post and a `design` post can share `typography`.
 
-Tags come from a list in the config, so `js` and `javascript` never drift apart. A tag the config doesn't declare is a build warning naming the file, and the post is built without it. A tag shows as a chip under every post that uses it. Once `tag_min_posts` posts use it (3 unless the config says otherwise), it also gets a page at `tags/<tag>/` with its own feed, and the chip links there. Below that, the chip is plain text, so a tag with one or two posts never makes a thin page. To give a tag's page your own title or an introduction, write `themes/sections/tags/<tag>.md` and put `{% include tag.html %}` where the list goes, as with section pages.
+Tags come from a list in the config, so `js` and `javascript` never drift apart. A post can write a tag in any case: `sqlite` and `SQLite` are the same tag. To put a description on a tag's page, write the tag as `SQLite: { description: "…" }` instead of `- SQLite`. A tag the config doesn't declare is a build warning naming the file, and the post is built without it. A tag shows as a chip under every post that uses it. Once `tag_min_posts` posts use it (3 unless the config says otherwise), it also gets a page at `tags/<tag>/` with its own feed, and the chip links there. Below that, the chip is plain text, so a tag with one or two posts never makes a thin page. To give a tag's page your own title or an introduction, write `themes/sections/tags/<tag>.md` and put `{% include tag.html %}` where the list goes, as with section pages.
 
 Each tagged post ends with related posts, picked at build time: the posts sharing the most tags first, then the newest posts from its own section. A post without tags gets none. `related` in the config tunes it; with fewer than `min` candidates the block is left out, and `max: 0` turns it off.
 
@@ -169,9 +169,9 @@ sections:
   - code
   - projects
 
-tags:                     # the slug is the URL, the title is what readers see
-  sqlite: { title: SQLite }
-  nim: { title: Nim, description: "Posts about the Nim language" }
+tags:                     # shown as written; the URL is the name in lowercase (tags/sqlite/)
+  - SQLite
+  - Nim
 tag_min_posts: 3          # posts a tag needs before it gets a page
 
 related:                  # related posts at the end of each post

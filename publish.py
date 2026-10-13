@@ -217,6 +217,18 @@ def extract_description(content_html: str, limit: int = DESCRIPTION_LENGTH) -> s
     return ''
 
 
+def tag_slug(name: Any) -> str:
+    """URL slug of a tag name: lowercase, runs of other characters as one hyphen
+
+    Args:
+        name: Tag name as written in the config or a post
+
+    Returns:
+        Slug such as "sqlite" for "SQLite"
+    """
+    return re.sub(r'[^a-z0-9]+', '-', str(name).lower()).strip('-')
+
+
 def normalize_url_path(path: str) -> str:
     """Normalize URL path by stripping leading/trailing slashes
 
@@ -791,12 +803,17 @@ class SiteBuilder:
     def collect_tags(self) -> None:
         """Check every post's tags against the vocabulary and list the posts under each tag"""
         min_posts = self.config.get('tag_min_posts', DEFAULT_TAG_MIN_POSTS)
+        vocabulary = self.config.get('tags') or {}
+        if isinstance(vocabulary, list):
+            vocabulary = {name: {'title': str(name)} for name in vocabulary}
+
         self.tags = {}
-        for slug, info in (self.config.get('tags') or {}).items():
+        for key, info in vocabulary.items():
             info = info or {}
+            slug = tag_slug(key)
             self.tags[slug] = {
                 'slug': slug,
-                'title': info.get('title', slug),
+                'title': info.get('title', str(key)),
                 'description': info.get('description', ''),
                 'url': f"{DIR_TAGS}/{slug}/",
                 'md_url': f"{DIR_TAGS}/{slug}.md",
@@ -805,10 +822,10 @@ class SiteBuilder:
             }
 
         for post in self.get_all_posts():
-            for slug in post['tags']:
-                if slug not in self.tags:
-                    self.warn(MESSAGES['unknown_tag'].format(post['file_path'], slug))
-            post['tags'] = [slug for slug in post['tags'] if slug in self.tags]
+            for name in post['tags']:
+                if tag_slug(name) not in self.tags:
+                    self.warn(MESSAGES['unknown_tag'].format(post['file_path'], name))
+            post['tags'] = list(dict.fromkeys(tag_slug(name) for name in post['tags'] if tag_slug(name) in self.tags))
             post['tag_titles'] = [self.tags[slug]['title'] for slug in post['tags']]
             for slug in post['tags']:
                 self.tags[slug]['posts'].append(post)

@@ -802,6 +802,25 @@ main ol li {
         outline: 0;
     }
 
+    .search-input {
+        background-color: transparent;
+    }
+
+    /* Inset outline on the wrapper: visible focus cue without layout shift */
+    .search-input-wrap {
+        outline: 2px solid transparent;
+        outline-offset: -2px;
+        transition: height linear 200ms, outline-color 150ms;
+    }
+
+    .search-input-wrap:hover {
+        outline-color: var(--c3);
+    }
+
+    .search-input-wrap:focus-within {
+        outline-color: var(--ce);
+    }
+
     .search-results-list {
         font-size: 0.875rem !important;
         list-style: none;

@@ -47,6 +47,9 @@ sections:
   - code
   - projects
 
+tags:
+  - linux
+
 rules:
   - scope:
       path: themes/sections/home.md
