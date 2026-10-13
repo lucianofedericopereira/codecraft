@@ -11,6 +11,9 @@ Every release, as it ships.
 - Changed the search shortcut from Ctrl/Cmd+K, which browsers keep for their own search, to `s`, or Alt+S from inside another text field
 - Fixed the search shortcut on narrow screens focusing a search box hidden inside the closed menu
 - Added an outline to the search box on hover and while it has focus, drawn inside its edge so nothing moves
+- Changed keyboard focus to drop the browser's own focus ring, which took the system theme's colour: links darken with a faux bold, table of contents entries take the hover colour, pills, chips and the code copy button show their hover look, toggles darken, and search results get an outline drawn inside the entry; nothing moves on focus
+- Changed the code copy button to rounded corners
+- Changed the search results to leave room above the first entry, and stopped the results box itself taking a Tab stop
 - Fixed Back to the first page of a visit leaving the next page's content on screen
 - Fixed the language menu, and the menu on narrow screens, staying open after a language is picked
 - Fixed a jsDelivr outage stopping every script on the site, where only diagrams depend on it now

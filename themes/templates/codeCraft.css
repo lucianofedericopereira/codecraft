@@ -824,6 +824,7 @@ main ol li {
     .search-results-list {
         font-size: 0.875rem !important;
         list-style: none;
+        padding-top: .75rem;
     }
 
     .search-results-list-item {
@@ -906,12 +907,6 @@ main ol li {
 
     .search-result:hover .search-result-title {
         color: var(--r0);
-    }
-
-    /* Inside the entry, so the scrolling results box cannot clip it; same colour as the search box */
-    .search-result:focus-visible {
-        outline: 2px solid var(--ce);
-        outline-offset: -2px;
     }
 
     .search-results:focus {
@@ -1493,11 +1488,6 @@ main ol li {
 
     }
 
-    #logo-link:focus {
-        outline: 4px solid var(--cc);
-        outline-offset: -3px;
-    }
-
     .aside-link {
         font-weight: normal;
         transition: font-weight 0.3s ease, transform 0.3s ease;
@@ -1508,10 +1498,55 @@ main ol li {
         transform: scale(1.025);
     }
 
+    /* Keyboard focus: no browser ring (it takes the system theme colour); each element gets its own cue, none moves layout */
+    :focus-visible {
+        outline: none;
+    }
+
+    #logo-link:focus-visible {
+        outline: 4px solid var(--cc);
+        outline-offset: -3px;
+    }
+
     .dropbtn:focus,
-    p a:focus {
+    p a:focus,
+    li a:focus {
         outline: none;
         color: var(--r0);
+        text-shadow: 0 0 .6px currentColor;
+    }
+
+    #chapters a:focus-visible span,
+    #chapters a:focus-visible::after {
+        color: var(--ce);
+        text-shadow: 0 0 .6px currentColor;
+    }
+
+    .tag-pills a.pill:focus-visible {
+        background-color: var(--cb);
+    }
+
+    #menu-toggle:focus-visible,
+    #toc-toggle:focus-visible,
+    #translate-toggle:focus-visible {
+        filter: brightness(.8);
+    }
+
+    a.section-tag:focus-visible {
+        background-color: var(--r0);
+        color: var(--c7);
+    }
+
+    div.highlighter-rouge>button:focus-visible,
+    div.listingblock>div.content>button:focus-visible,
+    figure.highlight>button:focus-visible {
+        background-color: var(--rf);
+        filter: brightness(.9);
+    }
+
+    .search-result:focus-visible {
+        outline: 2px solid var(--ce);
+        outline-offset: -2px;
     }
 
     main p a[href^="#"]:focus::before {
@@ -1653,6 +1688,7 @@ main ol li {
     div.listingblock>div.content>button,
     figure.highlight>button {
         border: .9rem solid var(--c7);
+        border-radius: 6px;
         width: 1rem;
         opacity: 0;
         position: absolute;
