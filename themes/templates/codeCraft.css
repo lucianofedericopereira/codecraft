@@ -908,6 +908,16 @@ main ol li {
         color: var(--r0);
     }
 
+    /* Inside the entry, so the scrolling results box cannot clip it; same colour as the search box */
+    .search-result:focus-visible {
+        outline: 2px solid var(--ce);
+        outline-offset: -2px;
+    }
+
+    .search-results:focus {
+        outline: 0;
+    }
+
     main li .highlighter-rouge,
     main p .highlighter-rouge {
         font-size: 1.054rem;
