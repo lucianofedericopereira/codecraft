@@ -1849,18 +1849,18 @@ main ol li {
         color: #000000;
     }
 
-    /* Type scale in pt: 22 / 16 / 13 / 11 body / 10 tables / 9 code / 8 notes */
+    /* Type scale in pt: 20 / 15 / 13 / 11 body / 10 tables / 8.5 code / 8 notes */
     body {
         font-size: 11pt;
     }
 
     main h1 {
-        font-size: 22pt;
+        font-size: 20pt;
         line-height: 1.2;
     }
 
     main h2 {
-        font-size: 16pt;
+        font-size: 15pt;
         line-height: 1.25;
     }
 
@@ -1890,14 +1890,14 @@ main ol li {
 
     main pre {
         font-family: var(--font-code), monospace;
-        font-size: 9pt;
+        font-size: 8.5pt;
         line-height: 1.4;
         white-space: pre-wrap;
         overflow-wrap: anywhere;
         overflow: visible;
         margin: 9pt 0;
-        padding-left: 6pt;
-        border-left: 1pt solid #bbbbbb;
+        padding: 0;
+        border: none;
         break-inside: auto;
         orphans: 4;
         widows: 4;
@@ -1910,7 +1910,15 @@ main ol li {
     main p code,
     main li code,
     main td code {
-        font-size: 9.5pt;
+        font-size: 9pt;
+    }
+
+    main ul {
+        padding-left: 2.5ch !important;
+    }
+
+    main ul li {
+        padding-left: .5ch;
     }
 
     main table {
@@ -2125,7 +2133,7 @@ main ol li {
         background: white !important;
         border: none !important;
         color: black !important;
-        font-size: 9pt;
+        font-size: 8.5pt;
         line-height: 1.4;
         white-space: pre-wrap;
         overflow-wrap: anywhere;
