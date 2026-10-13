@@ -66,7 +66,7 @@ title: "Your Post Title"          # required
 date: 2026-01-15                  # YYYY-MM-DD; see below if left out
 description: "One-line summary"   # optional, see below
 updated: 2026-02-01               # optional, last significant edit
-tags: [sqlite, nim]               # optional, from the tags in the config
+tags: sqlite, nim                 # optional, from the tags in the config
 comments: true                    # Utterances comments
 toc: true                         # table of contents
 mermaid: false                    # load Mermaid for diagrams

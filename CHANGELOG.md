@@ -18,7 +18,7 @@ Every release, as it ships.
 - Removed Lunr.js, `search_file` and `scripts.lunr` from the config, and the `search` meta tag
 - Removed the jsDelivr preconnect from pages without a Mermaid diagram
 - Removed the unused `search_enabled` setting, and a search observer that never fired
-- Added tags: a `tags:` list of names in `themes/config.yaml` (or a mapping, for a description per tag) and a `tags:` list in a post's frontmatter, matched in any case, with a build warning naming the file for a tag the config doesn't declare
+- Added tags: a `tags:` list of names in `themes/config.yaml` (or a mapping, for a description per tag) and `tags: linux, bash` in a post's frontmatter (a YAML list works too), matched in any case, with a build warning naming the file for a tag the config doesn't declare
 - Added tag chips under each post, linking to the tag's page once it has one
 - Added a page, a Markdown version and an RSS feed for every tag used by at least `tag_min_posts` posts (3 by default), and `tags/` listing every tag in use with its count
 - Added tag pages to `sitemap.xml`, `sitemap/`, `sitemap.md` and `llms.txt`

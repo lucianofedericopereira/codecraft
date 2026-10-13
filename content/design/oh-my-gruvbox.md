@@ -1,6 +1,7 @@
 ---
 title: "Oh My GruvBox: Bringing Retro Colors to Oh My Posh"
 date: 2026-05-22
+tags: linux
 comments: true
 ---
 

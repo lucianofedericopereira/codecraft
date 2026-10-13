@@ -1,6 +1,7 @@
 ---
 title: "JavaScript Email Obfuscation with XOR Encoding"
 date: 2024-10-25
+tags: javascript
 comments: true
 toc: true
 ---

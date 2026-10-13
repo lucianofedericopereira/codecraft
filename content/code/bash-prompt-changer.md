@@ -1,6 +1,7 @@
 ---
 title: "Bash Prompt Changer: A Gallery for Your Terminal"
 date: 2025-07-04
+tags: linux
 comments: true
 ---
 

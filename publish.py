@@ -742,7 +742,7 @@ class SiteBuilder:
             self.warn(MESSAGES['missing_date'].format(file_path, post_date, origin))
         tags = post.get('tags') or []
         if isinstance(tags, str):
-            tags = [tags]
+            tags = [tag.strip() for tag in tags.split(',') if tag.strip()]
 
         try:
             content_html, include_directives = process_markdown_content(post.content)
