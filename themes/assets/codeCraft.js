@@ -143,20 +143,16 @@ const initializeTranslate = () => {
         element.dispatchEvent(event);
     };
 
-    // Back to the original: Google's own restore button, else drop its cookie and reload
+    // Back to the original: drop Google's cookie and reload, since removeFontTags leaves its restore nothing to revert
     const restoreOriginal = () => {
         const html = document.documentElement;
         if (!html.classList.contains('translated-ltr') && !html.classList.contains('translated-rtl')) return;
-        for (const frame of $$('iframe.skiptranslate, iframe.goog-te-banner-frame')) {
-            const restore = frame.contentDocument?.querySelector('[id$=".restore"]');
-            if (restore) {
-                restore.click();
-                return;
-            }
-        }
         const expired = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
         document.cookie = expired;
-        document.cookie = `${expired}; domain=${location.hostname}`;
+        const labels = location.hostname.split('.');
+        for (let i = 0; i < labels.length - 1; i++) {
+            document.cookie = `${expired}; domain=${labels.slice(i).join('.')}`;
+        }
         location.reload();
     };
 

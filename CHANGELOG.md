@@ -30,7 +30,7 @@ Every release, as it ships.
 - Fixed Back to the first page of a visit leaving the next page's content on screen
 - Changed the logo, and any other link to the page already shown, to do nothing instead of reloading it
 - Fixed the language menu, and the menu on narrow screens, staying open after a language is picked
-- Fixed picking English sending the English page through Google Translate: it now shows the original, untranslated page, and does nothing when the page is not translated
+- Fixed picking English sending the English page through Google Translate: it now shows the original, untranslated page, also after another language was picked, and does nothing when the page is not translated
 - Fixed a jsDelivr outage stopping every script on the site, where only diagrams depend on it now
 - Fixed `search.json` escaping quotes by hand: it is written with Jinja's `tojson`, so a backslash or control character in a post can no longer break the index
 - Removed Lunr.js, `search_file` and `scripts.lunr` from the config, and the `search` meta tag
